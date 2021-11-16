@@ -31,6 +31,7 @@ static const char* about =
 	"## License & copyright\n\n" \
 	"> Rover is licensed under an ISC-like license.\n" \
 	"> The Spleen font by Frederic Cambus is licensed under the Simplified BSD License.\n"
+	"> The cwalk library by Leonard Iklé is licensed under the MIT License.\n"
 ;
 #undef DEF_ABOUT
 #endif

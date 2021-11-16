@@ -2,6 +2,8 @@
 #define DEF_ABOUT
 #include "config.h"
 
+#include "cwalk.h"
+
 static const char* srv_msgs[] = { "File Not Found", "Internal Server Error" };
 static const char* cli_msgs[] = {
 	"Couldn't open socket", "Invalid address", "Connection timed out"
@@ -95,6 +97,7 @@ int worker_thread(void* udata)
 	ssize_t rt;
 	uint8_t op;
 	void* tmp;
+	char redir[UINT16_MAX + 8];
 
 	loop_t loop;
 	state_t* st;
@@ -199,8 +202,17 @@ handle_res:
 						/* Basic anti-loop */
 						if (res->type == CNT_REDIR && strcmp(res->buff, st->url))
 						{
-							free(st->url);
-							st->url = strdup(res->buff);
+							if (strncmp(res->buff, PIPER, sizeof(PIPER) - 1))
+							{
+								sprintf(redir, "%s/..", req->uri);
+								cwk_path_get_absolute(redir, res->buff, redir, UINT16_MAX + 1);
+								free(st->url);
+								asprintf(&st->url, "%s:%s%s", req->host, req->port, redir);
+							} else
+							{
+								free(st->url);
+								st->url = strdup(res->buff);
+							}
 							goto start_req;
 						} else
 						{
