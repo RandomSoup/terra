@@ -1,4 +1,4 @@
-#include "www.h"
+#include "rover.h"
 #include "config.h"
 
 int ps[2];
@@ -238,7 +238,7 @@ int main(int argc, char* argv[])
 		goto end;
 	}
 
-	win = glfwCreateWindow(surfs->width, surfs->height, "GLPiper", NULL, NULL);
+	win = glfwCreateWindow(surfs->width, surfs->height, "Rover", NULL, NULL);
 	if (!win)
 	{
 		rt = -3;

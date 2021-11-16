@@ -23,13 +23,13 @@ static uint32_t palette[] = {
 #ifdef DEF_ABOUT
 /* #embed when? */
 static const char* about =
-	"# Welcome to GLPiper " VERSION "!\n" \
-	"You can enter any Piper URL in the navigation bar, including or excluding the `piper://`,\n" \
-	"and press Enter to navigate. You can also use the up and down arrows to scroll.\n\n" \
+	"# Welcome to Rover " VERSION "!\n" \
+	"You can enter any Piper URL in the address bar, and press Enter to navigate, " \
+	"and the up and down arrows to scroll.\n\n" \
 	"## Page index\n\n" \
 	"=> piper://citadel.luminoso.dev Luminoso.dev - Piper Edition\n\n" \
 	"## License & copyright\n\n" \
-	"> GLPiper is licensed under an ISC-like license.\n" \
+	"> Rover is licensed under an ISC-like license.\n" \
 	"> The Spleen font by Frederic Cambus is licensed under the Simplified BSD License.\n"
 ;
 #undef DEF_ABOUT

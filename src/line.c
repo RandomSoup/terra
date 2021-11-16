@@ -1,4 +1,4 @@
-#include "www.h"
+#include "rover.h"
 #include "config.h"
 
 int line_next(line_t* line, cur_t* cur)
@@ -34,6 +34,12 @@ int line_next(line_t* line, cur_t* cur)
 	} else
 	{
 		line->type = EL_TEXT;
+	}
+	rt = mbrtoc32(&wchr, ptr, MB_CUR_MAX, &mbs);
+	if (cur->type != EL_IGNORE && wchr == ' ')
+	{
+		ptr++;
+		cur->off++;
 	}
 	while (i < MAXC)
 	{

@@ -1,15 +1,12 @@
 /* Hic sunt dracones */
 
-#include "www.h"
+#include "rover.h"
 #include "config.h"
 
 int piper_build(req_t* req, res_t* res, const char* url)
 {
 	char* slash;
 	char* colon;
-
-	memset(req, 0x00, sizeof(*req));
-	memset(res, 0x00, sizeof(*res));
 
 	if (!strncmp(url, PIPER, sizeof(PIPER) - 1))
 	{
@@ -21,15 +18,9 @@ int piper_build(req_t* req, res_t* res, const char* url)
 	}
 	req->url = strdup(url);
 	req->host = req->url;
-	slash = strchr(req->url, '/');
-	if (slash)
-	{
-		req->uri = strdup(slash);
-		*slash = 0x00;
-	} else
-	{
-		req->uri = strdup("/");
-	}
+	slash = strchrnul(req->url, '/');
+	*slash = 0x00;
+	req->uri = slash + 1;
 	colon = strchr(req->host, ':');
 	if (colon)
 	{
@@ -85,12 +76,13 @@ int piper_start(res_t* res, req_t* req)
 		return -3;
 	}
 	uri_sz = strlen(req->uri);
-	uri_lesz = htole16(uri_sz);
+	uri_lesz = htole16(uri_sz + 1);
 
 	flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
 	write(fd, &uri_lesz, sizeof(uint16_t));
+	write(fd, "/", 1);
 	write(fd, req->uri, uri_sz);
 	return fd;
 }
@@ -105,11 +97,8 @@ void piper_free(res_t* res, req_t* req)
 	{
 		free(req->url);
 	}
-	if (req->uri)
-	{
-		free(req->uri);
-	}
+	memset(req, 0x00, sizeof(*req));
+	memset(res, 0x00, sizeof(*res));
 	res->type = CNT_GEMTEXT;
-	res->buff = NULL;
 	return;
 }

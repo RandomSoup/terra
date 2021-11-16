@@ -1,5 +1,5 @@
-#ifndef WWW_H
-#define WWW_H
+#ifndef ROVER_H
+#define ROVER_H
 
 #define _GNU_SOURCE
 
@@ -19,8 +19,10 @@
 #include <endian.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <linux/sockios.h>
 #include <threads.h>
 #include <errno.h>
 
@@ -31,7 +33,7 @@
 #define ABOUT "about:"
 #define SURFW MAXC * FONTW + XOFF * 2
 #define MAXEVS 20
-#define VERSION "v0.1.0"
+#define VERSION "v0.2.0"
 
 #ifdef __has_attribute
 #	if __has_attribute(always_inline)

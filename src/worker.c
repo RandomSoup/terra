@@ -1,4 +1,4 @@
-#include "www.h"
+#include "rover.h"
 #define DEF_ABOUT
 #include "config.h"
 
@@ -14,7 +14,7 @@ static void handle_doc(state_t* st)
 	link_t link;
 	surf_t* surf;
 	res_t* res;
-	int8_t type;
+	uint8_t type;
 
 	surf = &st->surfs[2];
 	dynstr_set(st->inp, st->url);
@@ -54,7 +54,7 @@ static void handle_doc(state_t* st)
 	}
 
 set_status:
-	type = (int8_t)res->type;
+	type = res->type;
 	switch (type)
 	{
 		case CNT_UTF8:
@@ -72,9 +72,10 @@ set_status:
 			st->status = "Redirect Loop";
 		break;
 		default:
-			if ((int8_t)type < 0)
+			/* Yes, magic number, I know. */
+			if (type >= 0xff - 3)
 			{
-				st->status = cli_msgs[255 - (uint8_t)type];
+				st->status = cli_msgs[0xff - type];
 			} else
 			{
 				st->status = "Not Implemented";
@@ -90,8 +91,10 @@ int worker_thread(void* udata)
 	int stage = 0;
 	int server = 0;
 	size_t off = 0;
+	size_t rem = 0;
 	ssize_t rt;
-	uint8_t tmp;
+	uint8_t op;
+	void* tmp;
 
 	loop_t loop;
 	state_t* st;
@@ -107,7 +110,7 @@ int worker_thread(void* udata)
 	loop_run(loop, {
 		if (loop_fd == ps[0])
 		{
-			rt = read(ps[0], &tmp, sizeof(tmp));
+			rt = read(ps[0], &op, sizeof(op));
 			if (!rt)
 			{
 				loop.run = false;
@@ -116,11 +119,11 @@ int worker_thread(void* udata)
 start_req:
 				off = 0;
 				stage = 0;
-				if (server)
+				if (server > 0)
 				{
 					close(server);
-					server = 0;
 				}
+				server = 0;
 				piper_free(res, req);
 
 				st->status = "Loading...";
@@ -177,6 +180,13 @@ start_req:
 					{
 						goto close_stage;
 					}
+					if (res->sz >= UINT64_MAX)
+					{
+						stage++;
+					}
+					stage++;
+				break;
+				case 10:
 					rt = read(server, res->buff + off, res->sz - off);
 					off += rt;
 					if (rt < 0)
@@ -184,6 +194,7 @@ start_req:
 						goto close_stage;
 					} else if (off == res->sz || rt == 0)
 					{
+handle_res:
 						res->buff[off] = 0x00;
 						/* Basic anti-loop */
 						if (res->type == CNT_REDIR && strcmp(res->buff, st->url))
@@ -196,6 +207,28 @@ start_req:
 							handle_doc(st);
 						}
 						goto close_stage;
+					}
+				break;
+				case 11:
+					if (ioctl(server, SIOCINQ, &rem))
+					{
+						goto close_stage;
+					}
+					tmp = realloc(res->buff, off + rem);
+					if (!tmp)
+					{
+						free(res->buff);
+						goto close_stage;
+					}
+					res->buff = tmp;
+					rt = read(server, res->buff + off, rem);
+					off += rt;
+					if (rt < 0)
+					{
+						goto close_stage;
+					} else if (rt == 0)
+					{
+						goto handle_res;
 					}
 				break;
 				default:

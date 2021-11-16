@@ -7,14 +7,18 @@ OPTFLAGS:=-O3 -ffast-math -flto
 endif
 CFLAGS+=-I./ -I./src -std=c17 $(shell pkg-config --cflags gl glfw3 epoxy) $(WARNINGS) $(OPTFLAGS)
 OBJS:=$(patsubst %,./build/%.o,dynarr line draw main piper gem dynstr loop worker)
+STRIP?=strip
 
-all: ./build/ ./build/a.out
+all: ./build/ ./build/rover
 
 ./build/:
 	mkdir -p $@
 
-./build/a.out: $(OBJS)
-	$(CC) $^ -o $@ $(LDFLAGS)
+./build/rover: $(OBJS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(OPTFLAGS)
+ifneq ($(RELEASE),)
+	$(STRIP) $@
+endif
 
 ./build/%.o: ./src/%.c
 	$(CC) -c $^ -o $@ $(CFLAGS)

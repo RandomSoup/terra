@@ -1,6 +1,4 @@
-#include "www.h"
-
-const char* dir;
+#include "rover.h"
 
 int loop_init(loop_t* loop)
 {
