@@ -55,24 +55,31 @@ static void handle_doc(state_t* st)
 
 set_status:
 	type = (int8_t)res->type;
-	if (type == CNT_GEMTEXT)
+	switch (type)
 	{
-		st->status = "Gemtext";
-	} else if (type >= CNT_UTF8 && type <= CNT_FASCII)
-	{
-		st->status = "Text";
-	} else if (type >= CNT_EFILE && type <= CNT_ESRV)
-	{
-		st->status = srv_msgs[type - CNT_EFILE];
-	} else if (type == CNT_RPIPER)
-	{
-		st->status = "Redirect Loop";
-	} else if ((int8_t)type < 0)
-	{
-		st->status = cli_msgs[255 - (uint8_t)type];
-	} else
-	{
-		st->status = "Not Implemented";
+		case CNT_UTF8:
+		case CNT_ASCII:
+			st->status = "Text";
+		break;
+		case CNT_GEMTEXT:
+			st->status = "Gemtext";
+		break;
+		case CNT_EFILE:
+		case CNT_ESRV:
+			st->status = srv_msgs[type - CNT_EFILE];
+		break;
+		case CNT_REDIR:
+			st->status = "Redirect Loop";
+		break;
+		default:
+			if ((int8_t)type < 0)
+			{
+				st->status = cli_msgs[255 - (uint8_t)type];
+			} else
+			{
+				st->status = "Not Implemented";
+			}
+		break;
 	}
 	glfwPostEmptyEvent();
 	return;
@@ -157,7 +164,7 @@ start_req:
 					{
 						goto close_stage;
 					}
-					if (res->type >= CNT_EFILE && res->type <= CNT_ESRV)
+					if (res->type == CNT_EFILE || res->type == CNT_ESRV)
 					{
 						handle_doc(st);
 						goto close_stage;
@@ -179,7 +186,7 @@ start_req:
 					{
 						res->buff[off] = 0x00;
 						/* Basic anti-loop */
-						if (res->type == CNT_RPIPER && strcmp(res->buff, st->url))
+						if (res->type == CNT_REDIR && strcmp(res->buff, st->url))
 						{
 							free(st->url);
 							st->url = strdup(res->buff);

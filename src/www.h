@@ -67,14 +67,11 @@ typedef enum cnt_t
 	CNT_UTF8 = 0x00,
 	CNT_GEMTEXT = 0x01,
 	CNT_ASCII = 0x02,
-	CNT_FUTF8 = 0x10,
-	CNT_FASCII = 0x11,
-	CNT_FRAW = 0x1f,
-	CNT_RPIPER = 0x20,
-	CNT_REXTERN = 0x21,
+	CNT_RAW = 0x1f,
+	CNT_REDIR = 0x20,
 	CNT_EFILE = 0x22,
 	CNT_ESRV = 0x23,
-	CNT_SVER = 0x24
+	CNT_VER = 0x24
 } cnt_t;
 
 typedef struct surf_t
