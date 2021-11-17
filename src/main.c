@@ -1,177 +1,12 @@
 #include "rover.h"
+#define DEF_ABOUT
 #include "config.h"
-
-int ps[2];
-
-static int load_page(state_t* st, char* url)
-{
-	uint8_t tmp = 0x00;
-
-	if (!url)
-	{
-		url = st->url;
-	} else if (st->url)
-	{
-		free(st->url);
-	}
-	st->url = url;
-	write(ps[1], &tmp, sizeof(tmp));
-	return 0;
-}
-
-static void handle_scroll(state_t* st, int key)
-{
-	int i;
-	void* dst;
-	void* src;
-	size_t sz;
-	surf_t* surf;
-	line_t* line;
-
-	surf = &st->surfs[2];
-	sz = FONTH * surf->stride;
-	if (key == GLFW_KEY_UP && st->i > 0)
-	{
-		i = MAXR - 1;
-		while (i)
-		{
-			dst = surf->map + surf->sz - ((YOFF + (i + 1) * FONTH) * surf->stride);
-			src = surf->map + (YOFF + (MAXR - i) * FONTH) * surf->stride;
-			memcpy(dst, src, sz);
-			i--;
-		}
-		st->i--;
-		draw_line(surf, 0, st->cur, dynarr_get(st->arr, st->i));
-	} else if (key == GLFW_KEY_DOWN && st->i + MAXR < st->arr->len)
-	{
-		i = 1;
-		while (i < MAXR)
-		{
-			dst = surf->map + surf->sz - ((YOFF + i * FONTH) * surf->stride);
-			src = surf->map + (YOFF + (MAXR - i - 1) * FONTH) * surf->stride;
-			memcpy(dst, src, sz);
-			i++;
-		}
-		st->i++;
-		if ((line = dynarr_get(st->arr, st->i + MAXR - 1)))
-		{
-			draw_line(surf, MAXR - 1, st->cur, line);
-		}
-	}
-	return;
-}
-
-static void glfw_key_cb(GLFWwindow* win, int key, int scancode, int action, int mods)
-{
-	state_t* st;
-	dynstr_t* inp;
-
-	if (action != GLFW_PRESS && action != GLFW_REPEAT)
-	{
-		return;
-	}
-
-	st = glfwGetWindowUserPointer(win);
-	inp = st->inp;
-	if (key == GLFW_KEY_UP || key == GLFW_KEY_DOWN)
-	{
-		handle_scroll(st, key);
-	} else if (key == GLFW_KEY_F5)
-	{
-		load_page(st, NULL);
-	} else if (key == GLFW_KEY_BACKSPACE)
-	{
-		if (inp->len - 1 >= 0)
-		{
-			/* TODO: Handle multi-byte characters properly */
-			inp->ptr[--inp->len] = 0x00;
-		}
-		draw_url(&st->surfs[3], inp->ptr);
-	} else if (key == GLFW_KEY_ENTER)
-	{
-		load_page(st, strdup(inp->ptr));
-	}
-	return;
-}
-
-static void glfw_chr_cb(GLFWwindow* win, unsigned int utf32)
-{
-	int rt;
-	state_t* st;
-	dynstr_t* inp;
-	mbstate_t mbs = { 0x00 };
-
-	st = glfwGetWindowUserPointer(win);
-	inp = st->inp;
-	if (dynstr_alloc(inp, inp->len + MB_CUR_MAX))
-	{
-		return;
-	}
-	rt = c32rtomb(inp->ptr + inp->len, (char32_t)utf32, &mbs);
-	inp->len += rt;
-	inp->ptr[inp->len] = 0x00;
-	draw_url(&st->surfs[3], inp->ptr);
-	return;
-}
-
-static void glfw_click_cb(GLFWwindow* win, int button, int action, int mods)
-{
-	double x, y;
-	size_t i = 0;
-	uint32_t row, col;
-	state_t* st;
-	dynarr_t* links;
-	link_t* link;
-	line_t* line;
-
-	if (button != GLFW_MOUSE_BUTTON_LEFT || action != GLFW_RELEASE)
-	{
-		return;
-	}
-
-	st = glfwGetWindowUserPointer(win);
-	glfwGetCursorPos(win, &x, &y);
-
-	row = (uint32_t)((y - (FONTH + YOFF * 3)) / FONTH);
-	if (row > MAXR)
-	{
-		return;
-	}
-	row += st->i;
-	col = (uint32_t)((x - XOFF) / FONTW);
-	line = dynarr_get(st->arr, row);
-	if (!line || col > line->sz)
-	{
-		return;
-	}
-	links = st->links;
-	while (i < links->len)
-	{
-		link = dynarr_get(links, i);
-		if (link->line == row)
-		{
-			load_page(st, strdup(link->url));
-			break;
-		}
-		i++;
-	}
-	return;
-}
-
-static void glfw_err_cb(int err, const char* str)
-{
-	fprintf(stderr, "GLFW Error %d: %s\n", err, str);
-	return;
-}
 
 int main(int argc, char* argv[])
 {
 	int rt = 0;
-	uint64_t i = 1;
-	uint64_t tmp_sz = 0;
-	thrd_t tid;
-	GLFWwindow* win = NULL;
-
+	gui_t gui;
+	loop_t loop;
 	req_t req = { 0x00 };
 	res_t res = { 0x00 };
 	cur_t cur = { .is_gem = false };
@@ -180,127 +15,114 @@ int main(int argc, char* argv[])
 	dynstr_t inp;
 	surf_t surfs[] = {
 		{
-			.bpp = 3,
+			.bpp = 4,
 			.width = SURFW,
 			.height = 0,
 			.sz = 0
 		},
 		{
-			.bpp = 3,
+			.bpp = 4,
 			.width = SURFW,
 			.height = FONTH + YOFF * 2
 		},
 		{
-			.bpp = 3,
+			.bpp = 4,
 			.width = SURFW,
 			.height = MAXR * FONTH + YOFF * 2
 		},
 		{
-			.bpp = 3,
+			.bpp = 4,
 			.width = SURFW,
 			.height = FONTH + YOFF * 2
 		}
 	};
-	state_t st = { &cur, surfs, &arr, &links, 0, &req, &res, NULL, &inp, "Loading..." };
-
-	pipe(ps);
-
-	surfs->stride = surfs->width * surfs->bpp;
-	while (i < sizeof(surfs) / sizeof(*surfs))
-	{
-		surfs[i].stride = surfs[i].width * surfs[i].bpp;
-		surfs[i].sz = surfs[i].height * surfs[i].stride;
-		surfs->height += surfs[i].height;
-		i++;
-	}
-	surfs->sz = surfs->height * surfs->stride;
-
-	surfs->map = malloc(surfs->sz);
-	if (!surfs->map)
-	{
-		rt = -1;
-		goto end;
-	}
-
-	i = 1;
-	tmp_sz = 0;
-	while (i < sizeof(surfs) / sizeof(*surfs))
-	{
-		surfs[i].map = surfs->map + tmp_sz;
-		tmp_sz += surfs[i].sz;
-		i++;
-	}
-
-	glfwSetErrorCallback(glfw_err_cb);
-	if (!glfwInit())
-	{
-		rt = -2;
-		goto end;
-	}
-
-	win = glfwCreateWindow(surfs->width, surfs->height, "Rover", NULL, NULL);
-	if (!win)
-	{
-		rt = -3;
-		goto end;
-	}
-	glfwSetWindowUserPointer(win, &st);
-	glfwMakeContextCurrent(win);
-	glfwSwapInterval(1);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	draw_fill(surfs, BGCOLOR);
-	glDrawPixels(surfs->width, surfs->height, GL_RGB, GL_UNSIGNED_BYTE, surfs->map);
-	glfwSwapBuffers(win);
+	state_t st = { &req, &res, &cur, surfs, &arr, &inp, &links, 0, NULL, false, "Loading..." };
+	conn_t conn = {
+		.req = &req,
+		.res = &res
+	};
 
 	dynarr_init(&arr, 16, line_t);
 	dynarr_init(&links, 16, link_t);
 	dynstr_init(&inp, MAXC);
+	loop_init(&loop);
 
-	if ((rt -= thrd_create(&tid, worker_thread, &st)) != thrd_success)
-	{
-		fprintf(stderr, "Couldn't create worker thread.\n");
-		goto end;
-	}
-
-	if ((rt = load_page(&st, strdup(ABOUT))))
+	loop.xfd = gui_init(&st, &gui, sizeof(surfs) / sizeof(*surfs));
+	if (loop.xfd < 0)
 	{
 		goto end;
 	}
 
-	glfwSetKeyCallback(win, glfw_key_cb);
-	glfwSetMouseButtonCallback(win, glfw_click_cb);
-	glfwSetCharCallback(win, glfw_chr_cb);
-	while (!glfwWindowShouldClose(win))
-	{
-		draw_status(&surfs[1], st.status);
-		glDrawPixels(surfs->width, surfs->height, GL_RGB, GL_UNSIGNED_BYTE, surfs->map);
-		glfwSwapBuffers(win);
-        glfwWaitEvents();
-	}
+	loop_add_fd(&loop, loop.xfd);
+	st.url = strdup("about:");
+	gui_handle(&st, &gui);
+	loop_run(loop, {
+		goto start_req;
+	}, {
+		if (loop_fd == loop.xfd)
+		{
+			loop.run = gui_handle(&st, &gui);
+		} else
+		{
+			conn_handle(&st, &conn);
+		}
+		XPutImage(gui.dpy, gui.win, gui.gc, gui.img, 0, 0, 0, 0, surfs->width, surfs->height);
+		if (st.pending)
+		{
+start_req:
+			if (!st.url)
+			{
+				st.url = strdup(inp.ptr);
+			}
+			conn.off = 0;
+			conn.stage = 0;
+			st.pending = false;
+			if (conn.server > 0)
+			{
+				close(conn.server);
+			}
+			conn.server = 0;
+			piper_free(&res, &req);
+			st.status = "Loading...";
+			if (!strncmp(st.url, ABOUT, sizeof(ABOUT) - 1))
+			{
+				res.buff = strdup(about);
+				conn.server = -1;
+				gui_render(&st);
+			} else if (piper_build(&req, &res, st.url))
+			{
+				st.status = "Invalid URL";
+			} else
+			{
+				conn.server = piper_start(&res, &req);
+				if (conn.server < 0)
+				{
+					res.type = conn.server;
+					gui_render(&st);
+				} else
+				{
+					loop_add_fd(&loop, conn.server);
+				}
+			}
+		}
+	});
 	rt = 0;
 
 end:
-	close(ps[1]);
-	thrd_join(tid, NULL);
-	if (win)
-	{
-		glfwDestroyWindow(win);
-	}
-	glfwTerminate();
+	loop_destroy(&loop);
 	dynarr_free(&arr);
 	dynarr_free(&links);
 	dynstr_free(&inp);
 	piper_free(&res, &req);
+	if (conn.server > 0)
+	{
+		close(conn.server);
+	}
 	if (st.url)
 	{
 		free(st.url);
 	}
-	if (surfs->map)
-	{
-		free(surfs->map);
-	}
+	XDestroyImage(gui.img);
+	XCloseDisplay(gui.dpy);
 	return rt;
 }

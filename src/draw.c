@@ -5,12 +5,10 @@
 
 always_inline void draw_setpx(surf_t* surf, uint32_t x, uint32_t y, uint32_t color)
 {
-	uint8_t* px;
+	uint32_t* px;
 
-	px = surf->map + x * surf->bpp + (surf->height - y) * surf->stride;
-	px[0] = (color & 0xff0000) >> 16;
-	px[1] = (color & 0x00ff00) >> 8;
-	px[2] = (color & 0x0000ff);
+	px = (uint32_t*)(surf->map + x * surf->bpp + y * surf->stride);
+	*px = color;
 	return;
 }
 
@@ -71,31 +69,15 @@ int draw_chr(surf_t* surf, char32_t chr, uint32_t x, uint32_t y, uint32_t fg, ui
 void draw_fill(surf_t* surf, uint32_t color)
 {
 	uint64_t sz;
-	uint64_t lsz;
-	uint64_t rsz;
 	uint64_t i = 0;
-	uint8_t* px;
-	uint32_t* lpx;
+	uint32_t* px;
 
-	sz = surf->height * surf->stride;
-	lsz = sz >> 2;
-	rsz = sz & 3;
-	lpx = (uint32_t*)surf->map;
-	while (i < lsz)
+	px = (uint32_t*)surf->map;
+	sz = surf->height * surf->width;
+	while (i < sz)
 	{
-		*lpx = color;
-		lpx++;
-		i++;
-	}
-
-	i = 0;
-	px = (uint8_t*)lpx;
-	while (i < rsz)
-	{
-		px[0] = (color & 0xff0000) >> 16;
-		px[1] = (color & 0x00ff00) >> 8;
-		px[2] = (color & 0x0000ff);
-		px += surf->bpp;
+		*px = color;
+		px++;
 		i++;
 	}
 	return;

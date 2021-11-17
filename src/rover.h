@@ -23,17 +23,17 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <linux/sockios.h>
-#include <threads.h>
 #include <errno.h>
 
-#include <epoxy/gl.h>
-#include <GLFW/glfw3.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/keysym.h>
 
 #define PIPER "piper://"
 #define ABOUT "about:"
-#define SURFW MAXC * FONTW + XOFF * 2
+#define SURFW (MAXC * FONTW + XOFF * 2)
 #define MAXEVS 20
-#define VERSION "v0.2.0"
+#define VERSION "v0.3.0"
 
 #ifdef __has_attribute
 #	if __has_attribute(always_inline)
@@ -157,24 +157,46 @@ typedef struct res_t
 
 typedef struct state_t
 {
+	req_t* req;
+	res_t* res;
 	cur_t* cur;
 	surf_t* surfs;
 	dynarr_t* arr;
+	dynstr_t* inp;
 	dynarr_t* links;
 	size_t i;
-	req_t* req;
-	res_t* res;
 	char* url;
-	dynstr_t* inp;
+	bool pending;
 	const char* status;
 } state_t;
 
 typedef struct loop_t
 {
 	int efd;
+	int xfd;
 	bool run;
 	struct epoll_event evs[MAXEVS];
 } loop_t;
+
+typedef struct conn_t
+{
+	req_t* req;
+	res_t* res;
+	int server;
+	int stage;
+	size_t off;
+	size_t rem;
+} conn_t;
+
+typedef struct gui_t
+{
+	GC gc;
+	XIC xic;
+	Window win;
+	XImage* img;
+	Display* dpy;
+	Atom close_atom;
+} gui_t;
 
 int draw_chr(surf_t* surf, char32_t chr, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg);
 void draw_fill(surf_t* surf, uint32_t color);
@@ -207,19 +229,26 @@ int loop_init(loop_t* loop);
 int loop_add_fd(loop_t* loop, int fd);
 void loop_destroy(loop_t* loop);
 
-#define loop_run(loop, code) \
+#define loop_run(loop, once, code) \
 { \
-	int loop_fd; \
-	int loop_fdc; \
+	int loop_i = 0; \
+	int loop_fd = 0; \
+	int loop_fdc = 0; \
+	bool loop_once = false; \
 	loop.run = true; \
 	while (loop.run) \
 	{ \
+		if (!loop_once) \
+		{ \
+			loop_once = true; \
+			once; \
+		} \
 		loop_fdc = epoll_wait(loop.efd, loop.evs, MAXEVS, -1); \
 		if (loop_fdc < 0) \
 		{ \
 			break; \
 		} \
-		for (int loop_i = 0; loop_i < loop_fdc; loop_i++) \
+		for (loop_i = 0; loop_i < loop_fdc; loop_i++) \
 		{ \
 			loop_fd = loop.evs[loop_i].data.fd; \
 			code; \
@@ -227,8 +256,10 @@ void loop_destroy(loop_t* loop);
 	} \
 }
 
-int worker_thread(void* udata);
+int gui_init(state_t* st, gui_t* gui, int surfc);
+void gui_render(state_t* st);
+bool gui_handle(state_t* st, gui_t* gui);
 
-extern int ps[2];
+void conn_handle(state_t* st, conn_t* conn);
 
-#endif /* !WWW_H */
+#endif /* !ROVER_H */

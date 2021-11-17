@@ -1,4 +1,4 @@
-LDFLAGS:=$(shell pkg-config --libs gl glfw3 epoxy) -lutil
+LDFLAGS:=$(shell pkg-config --libs x11) -lutil
 WARNINGS:=-Wall -Wextra -Wno-pointer-arith -Wno-unused-parameter
 ifeq ($(RELEASE),)
 OPTFLAGS:=-O1 -g
@@ -6,8 +6,8 @@ else
 OPTFLAGS:=-O3 -ffast-math -flto
 endif
 INCLUDES:=-I./ -I./lib/cwalk/include -I./src
-CFLAGS+=-std=c17 $(shell pkg-config --cflags gl glfw3 epoxy) $(WARNINGS) $(OPTFLAGS) $(INCLUDES)
-OBJS:=$(patsubst %,./build/%.o,dynarr line draw main piper gem dynstr loop worker) ./build/cwalk.o
+CFLAGS+=-std=c17 $(shell pkg-config --cflags x11) $(WARNINGS) $(OPTFLAGS) $(INCLUDES)
+OBJS:=$(patsubst %,./build/%.o,dynarr line draw gui conn piper gem dynstr loop main) ./build/cwalk.o
 STRIP?=strip
 
 all: ./build/ ./build/rover
@@ -28,4 +28,4 @@ endif
 	$(CC) -c $^ -o $@ $(CFLAGS)
 
 clean:
-	rm -f $(OBJS) ./build/a.out
+	rm -f $(OBJS) ./build/rover
