@@ -1,22 +1,30 @@
-LDFLAGS:=$(shell pkg-config --libs x11) -lutil
+INCLUDES:=-I./ -I./lib/cwalk/include -I./include
 WARNINGS:=-Wall -Wextra -Wno-pointer-arith -Wno-unused-parameter
 ifeq ($(RELEASE),)
 OPTFLAGS:=-O1 -g
 else
 OPTFLAGS:=-O3 -ffast-math -flto
 endif
-INCLUDES:=-I./ -I./lib/cwalk/include -I./src
-CFLAGS+=-std=c17 $(shell pkg-config --cflags x11) $(WARNINGS) $(OPTFLAGS) $(INCLUDES)
-OBJS:=$(patsubst %,./build/%.o,dynarr line draw gui conn piper gem dynstr loop main) ./build/cwalk.o
-STRIP?=strip
+CFLAGS+=-std=c17 $(WARNINGS) $(OPTFLAGS) $(INCLUDES)
 
-all: ./build/ ./build/rover
+ARES_OBJS:=$(patsubst %,./build/%.o,loop srv cwalk)
+
+ROVER_OBJS:=$(patsubst %,./build/%.o,dynarr line draw gui conn piper gem dynstr loop main cwalk)
+ROVER_LDFLAGS:=$(shell pkg-config --libs x11) -lutil
+
+all: ./build/ ./build/rover ./build/ares
 
 ./build/:
 	mkdir -p $@
 
-./build/rover: $(OBJS)
-	$(CC) $^ -o $@ $(LDFLAGS) $(OPTFLAGS)
+./build/rover: $(ROVER_OBJS)
+	$(CC) $^ -o $@ $(ROVER_LDFLAGS) $(OPTFLAGS)
+ifneq ($(RELEASE),)
+	$(STRIP) $@
+endif
+
+./build/ares: $(ARES_OBJS)
+	$(CC) $^ -o $@ $(OPTFLAGS)
 ifneq ($(RELEASE),)
 	$(STRIP) $@
 endif
@@ -28,4 +36,4 @@ endif
 	$(CC) -c $^ -o $@ $(CFLAGS)
 
 clean:
-	rm -f $(OBJS) ./build/rover
+	rm -f ./build/*

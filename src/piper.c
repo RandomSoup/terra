@@ -1,5 +1,3 @@
-/* Hic sunt dracones */
-
 #include "rover.h"
 #include "config.h"
 

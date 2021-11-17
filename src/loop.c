@@ -1,4 +1,4 @@
-#include "rover.h"
+#include "common.h"
 
 int loop_init(loop_t* loop)
 {
@@ -22,6 +22,25 @@ int loop_add_fd(loop_t* loop, int fd)
 		return -1;
 	}
 	return fd;
+}
+
+int loop_add_sigs(loop_t* loop, ...)
+{
+	int fd;
+	int signum;
+	sigset_t mask;
+	va_list args;
+
+	sigemptyset(&mask);
+	va_start(args, loop);
+	while ((signum = va_arg(args, int)))
+	{
+		sigaddset(&mask, signum);
+	}
+	va_end(args);
+	fd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+	return loop_add_fd(loop, fd);
 }
 
 void loop_destroy(loop_t* loop)

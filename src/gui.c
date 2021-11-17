@@ -107,6 +107,7 @@ void gui_render(state_t* st)
 	}
 
 	memset(st->cur, 0x00, sizeof(*st->cur));
+	st->cur->type = EL_IGNORE;
 	st->cur->str = res->buff;
 	st->cur->is_gem = res->type == CNT_GEMTEXT;
 	while (!line_next(&line, st->cur))
