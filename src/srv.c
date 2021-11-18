@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
 		} else
 		{
 			client = clients_get(clients, loop_fd);
-			if (handle_client(client))
+			if (client && handle_client(client))
 			{
 				close(loop_fd);
 				clients_del(clients, loop_fd);
