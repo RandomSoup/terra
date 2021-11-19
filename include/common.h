@@ -43,6 +43,14 @@
 
 #define MAXEVS 32
 
+#ifndef FALSE
+#	define FALSE 0
+#endif
+
+#ifndef TRUE
+#	define TRUE !FALSE
+#endif
+
 typedef enum cnt_t
 {
 	CNT_UTF8 = 0x00,
@@ -58,30 +66,39 @@ typedef enum cnt_t
 typedef struct loop_t
 {
 	int efd;
-	int xfd;
 	bool run;
 	struct epoll_event evs[MAXEVS];
 } loop_t;
+
+typedef struct dynarr_t
+{
+	void* ptr;
+	size_t sz; /* Total */
+	ssize_t len; /* Used */
+	size_t type;
+} dynarr_t;
+
+typedef struct dynstr_t
+{
+	char* ptr;
+	size_t sz; /* Total */
+	ssize_t len; /* Used */
+} dynstr_t;
 
 int loop_init(loop_t* loop);
 int loop_add_fd(loop_t* loop, int fd);
 int loop_add_sigs(loop_t* loop, ...);
 void loop_destroy(loop_t* loop);
 
-#define loop_run(loop, once, code) \
+#define loop_run(loop, before, after) \
 { \
 	int loop_i = 0; \
 	int loop_fd = 0; \
 	int loop_fdc = 0; \
-	bool loop_once = false; \
 	loop.run = true; \
 	while (loop.run) \
 	{ \
-		if (!loop_once) \
-		{ \
-			loop_once = true; \
-			once; \
-		} \
+		before; \
 		loop_fdc = epoll_wait(loop.efd, loop.evs, MAXEVS, -1); \
 		if (loop_fdc < 0) \
 		{ \
@@ -90,9 +107,27 @@ void loop_destroy(loop_t* loop);
 		for (loop_i = 0; loop_i < loop_fdc; loop_i++) \
 		{ \
 			loop_fd = loop.evs[loop_i].data.fd; \
-			code; \
+			after; \
 		} \
 	} \
 }
+
+int _dynarr_init(dynarr_t* arr, size_t sz, size_t type);
+#define dynarr_init(arr, sz, type) _dynarr_init(arr, sz, sizeof(type))
+int dynarr_add(dynarr_t* arr, void* ptr);
+void* dynarr_get(dynarr_t* arr, size_t i);
+void dynarr_free(dynarr_t* arr);
+void dynarr_reset(dynarr_t* arr);
+
+int dynstr_init(dynstr_t* str, size_t sz);
+int dynstr_alloc(dynstr_t* str, size_t sz);
+int dynstr_set(dynstr_t* str, char* ptr);
+void dynstr_free(dynstr_t* str);
+
+/* Utility functions */
+size_t strsubs(const char* str, const char* sub);
+const char* strskip(const char* str, const char* sub);
+char* strdel(char* str, char chr);
+int set_nonblock(int fd);
 
 #endif /* !COMMON_H */

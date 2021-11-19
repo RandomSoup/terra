@@ -18,7 +18,15 @@
 #define PIPER "piper://"
 #define ABOUT "about:"
 #define SURFW (MAXC * FONTW + XOFF * 2)
-#define VERSION "v0.3.0"
+#define VERSION "v0.4.0"
+#define LOADING "Loading..."
+#define SURF \
+	uint8_t bpp; /* Bytes per pixel, not bits */ \
+	uint32_t width; \
+	uint32_t height; \
+	uint32_t stride; \
+	uint64_t sz; \
+	uint8_t* map;
 
 typedef enum el_t
 {
@@ -33,30 +41,78 @@ typedef enum el_t
 	EL_IGNORE
 } el_t;
 
+typedef struct piper_t
+{
+	int fd;
+	int stage;
+	size_t off;
+	size_t rem;
+
+	struct packed
+	{
+		char* url;
+		char* uri;
+		char* host;
+		char* port;
+	};
+
+	union
+	{
+		struct packed
+		{
+			uint8_t type;
+			uint64_t sz;
+		};
+		uint8_t hdr[sizeof(uint64_t) + 1];
+	};
+	char* buff;
+} piper_t;
+
 typedef struct surf_t
 {
-	uint32_t width;
-	uint32_t height;
-	uint32_t stride;
-	uint64_t sz;
-	uint8_t* map;
-	uint8_t bpp; /* Bytes per pixel, not bits */
+	SURF
 } surf_t;
 
-typedef struct dynarr_t
+typedef struct gui_t
 {
-	void* ptr;
-	size_t sz; /* Total */
-	size_t len; /* Used */
-	size_t type;
-} dynarr_t;
+	SURF
 
-typedef struct dynstr_t
+	int fd;
+	int surfc;
+	void* udata;
+
+	GC gc;
+	XIC xic;
+	Window win;
+	XImage* img;
+	Display* dpy;
+	Atom close_atom;
+
+	surf_t* surfs;
+	struct packed
+	{
+		void (*key)(int sym, void* udata);
+		void (*utf8)(char* utf8, int len, void* udata);
+		void (*click)(int button, int x, int y, void* udata);
+	} cbs;
+} gui_t;
+
+typedef struct gem_t
 {
-	char* ptr;
-	ssize_t sz; /* Total */
-	ssize_t len; /* Used */
-} dynstr_t;
+	bool pre;
+	char* str;
+	char* url;
+	el_t type;
+} gem_t;
+
+typedef struct cur_t
+{
+	el_t type;
+	gem_t gem;
+	char* str;
+	bool is_gem;
+	uint32_t off;
+} cur_t;
 
 typedef struct packed line_t
 {
@@ -71,113 +127,47 @@ typedef struct packed link_t
 	uint32_t line;
 } link_t;
 
-typedef struct gem_t
+typedef struct rover_t
 {
-	bool pre;
-	el_t type;
-	char* str;
-	char* url;
-	char* rnt;
-} gem_t;
-
-typedef struct cur_t
-{
-	char* str;
-	uint32_t off;
-	bool is_gem;
-	el_t type;
-	gem_t gem;
-} cur_t;
-
-typedef struct req_t
-{
-	char* url;
-	char* uri;
-	char* host;
-	char* port;
-	bool first;
-} req_t;
-
-typedef struct res_t
-{
-	union
-	{
-		struct packed
-		{
-			uint8_t type;
-			uint64_t sz;
-		};
-		uint8_t hdr[sizeof(uint64_t) + 1];
-	};
-	char* buff;
-} res_t;
-
-typedef struct state_t
-{
-	req_t* req;
-	res_t* res;
-	cur_t* cur;
-	surf_t* surfs;
-	dynarr_t* arr;
+	gui_t* gui;
+	loop_t* loop;
+	piper_t* piper;
 	dynstr_t* inp;
+	dynarr_t* lines;
 	dynarr_t* links;
-	size_t i;
-	char* url;
+	cur_t* cur;
 	bool pending;
+	ssize_t lineno;
+	char* url;
 	const char* status;
-} state_t;
+} rover_t;
 
-typedef struct conn_t
-{
-	req_t* req;
-	res_t* res;
-	int server;
-	int stage;
-	size_t off;
-	size_t rem;
-} conn_t;
+int piper_build(piper_t* piper, const char* url);
+int piper_start(piper_t* piper);
+void piper_handle(piper_t* piper);
+void piper_free(piper_t* piper);
 
-typedef struct gui_t
-{
-	GC gc;
-	XIC xic;
-	Window win;
-	XImage* img;
-	Display* dpy;
-	Atom close_atom;
-} gui_t;
+int gui_init(gui_t* gui);
+bool gui_handle(gui_t* gui);
+int gui_draw(gui_t* gui);
+void gui_destroy(gui_t* gui);
 
-int draw_chr(surf_t* surf, char32_t chr, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg);
+#define draw_setpx(surf, x, y, color) (*(uint32_t*)((surf)->map + (x) * (surf)->bpp + (y) * (surf)->stride) = color)
 void draw_fill(surf_t* surf, uint32_t color);
-int draw_str(surf_t* surf, int row, char* str, uint64_t sz, uint32_t color);
-int draw_line(surf_t* surf, int row, cur_t* cur, line_t* line);
+int draw_chr(surf_t* surf, char32_t chr, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg);
+void draw_str(surf_t* surf, char* str, uint64_t sz, int row, uint32_t color);
+void draw_line(surf_t* surf, line_t* line, cur_t* cur, int row);
 int draw_url(surf_t* surf, char* url);
 int draw_status(surf_t* surf, const char* status);
 
-int _dynarr_init(dynarr_t* arr, size_t sz, size_t type);
-#define dynarr_init(arr, sz, type) _dynarr_init(arr, sz, sizeof(type))
-int dynarr_add(dynarr_t* arr, void* ptr);
-void* dynarr_get(dynarr_t* arr, size_t i);
-void dynarr_free(dynarr_t* arr);
-void dynarr_reset(dynarr_t* arr);
-
+void gem_parse(gem_t* dst, char* src);
 int line_next(line_t* line, cur_t* cur);
 
-int piper_build(req_t* req, res_t* res, const char* url);
-int piper_start(res_t* res, req_t* req);
-void piper_free(res_t* res, req_t* req);
-
-void gem_parse(gem_t* dst, char* src);
-
-int dynstr_init(dynstr_t* str, size_t sz);
-int dynstr_alloc(dynstr_t* str, ssize_t sz);
-int dynstr_set(dynstr_t* str, char* ptr);
-void dynstr_free(dynstr_t* str);
-
-int gui_init(state_t* st, gui_t* gui, int surfc);
-void gui_render(state_t* st);
-bool gui_handle(state_t* st, gui_t* gui);
-
-void conn_handle(state_t* st, conn_t* conn);
+void rover_render(rover_t* rover);
+void rover_load(rover_t* rover);
+void rover_utf8_cb(char* utf8, int len, void* udata);
+void rover_key_cb(int key, void* udata);
+void rover_click_cb(int button, int x, int y, void* udata);
+char* rover_resolve_path(piper_t* piper, char* src);
 
 #endif /* !ROVER_H */

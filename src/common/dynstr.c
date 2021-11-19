@@ -13,7 +13,7 @@ int dynstr_init(dynstr_t* str, size_t sz)
 	return 0;
 }
 
-int dynstr_alloc(dynstr_t* str, ssize_t sz)
+int dynstr_alloc(dynstr_t* str, size_t sz)
 {
 	char* tmp;
 
@@ -33,7 +33,7 @@ int dynstr_alloc(dynstr_t* str, ssize_t sz)
 int dynstr_set(dynstr_t* str, char* ptr)
 {
 	char* tmp;
-	ssize_t sz;
+	size_t sz;
 
 	sz = strlen(ptr);
 	if (str->sz <= sz + 1)

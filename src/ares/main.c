@@ -1,132 +1,64 @@
 #include "ares.h"
 
-#include "cwalk.h"
-
-static char dir[PATH_MAX + 1];
-static size_t dir_len = 0;
-
-int clients_set(client_t* clients, int fd)
-{
-	int hash;
-	int flags;
-
-	hash = fd & (MAXCLIENTS - 1);
-	while (clients[hash].stage)
-	{
-		hash++;
-		if (hash >= MAXCLIENTS)
-		{
-			hash = 0;
-		}
-	}
-	clients[hash].fd = fd;
-	clients[hash].stage = 1;
-	flags = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-	return hash;
-}
-
-client_t* clients_get(client_t* clients, int fd)
-{
-	int hash;
-
-	hash = fd & (MAXCLIENTS - 1);
-	while (clients[hash].stage)
-	{
-		if (clients[hash].fd == fd)
-		{
-			return &clients[hash];
-		}
-		hash++;
-		if (hash >= MAXCLIENTS)
-		{
-			hash = 0;
-		}
-	}
-	return NULL;
-}
-
-void clients_del(client_t* clients, int fd)
-{
-	int hash;
-
-	hash = fd & (MAXCLIENTS - 1);
-	while (clients[hash].stage)
-	{
-		if (clients[hash].fd == fd)
-		{
-			if (clients[hash].uri)
-			{
-				free(clients[hash].uri);
-			}
-			memset(&clients[hash], 0x00, sizeof(clients[hash]));
-			break;
-		}
-		hash++;
-		if (hash >= MAXCLIENTS)
-		{
-			hash = 0;
-		}
-	}
-	return;
-}
-
 always_inline void handle_cgi(client_t* client, char* path)
 {
-	int pi[2];
+	int ps[2];
 	pid_t pid;
-	char* argv[2] = { NULL, NULL };
 
-	pipe(pi);
+	pipe(ps);
 
-	write(pi[1], &client->sz, sizeof(client->sz));
-	write(pi[1], client->uri, client->sz);
+	write(ps[1], &client->sz, sizeof(client->sz));
+	write(ps[1], client->uri, client->sz);
 
 	pid = fork();
 	if (!pid)
 	{
-		close(pi[1]);
-		dup2(pi[0], STDIN_FILENO);
+		close(ps[1]);
+		dup2(ps[0], STDIN_FILENO);
 		dup2(client->fd, STDOUT_FILENO);
-		argv[0] = path;
-		execvp(path, argv);
+		execl(path, path, NULL);
 	}
-	close(pi[0]);
+	close(ps[0]);
 	return;
 }
 
 always_inline void handle_req(client_t* client)
 {
 	int fd;
-	char* query;
 	uint64_t sz = 0;
 	uint8_t type = 0x22;
 	struct stat st;
-	char full[UINT16_MAX + 1];
+	char* cwd = NULL;
+	char* full = NULL;
+	char tmp[UINT16_MAX + 8];
 
 	client->uri[client->sz] = 0x00;
 	printf("Requested %s\n", client->uri);
-	query = strchrnul(client->uri, '?');
-	*query = 0x00;
+	strdel(client->uri, '?');
 
-	sz = cwk_path_get_absolute("/", client->uri, full + dir_len, UINT16_MAX - dir_len - 1);
-	memcpy(full, dir, dir_len);
-	full[dir_len] = '/';
-	full[dir_len + sz] = 0x00;
+	cwd = getcwd(NULL, 0);
+	sprintf(tmp, "./%s", client->uri);
+	full = realpath(tmp, NULL);
+	if (!cwd || !full || !strsubs(full, cwd))
+	{
+		goto err;
+	}
+
 	if (stat(full, &st))
 	{
 		goto err;
 	}
 	type = CNT_UTF8;
+	sz = strlen(full);
 	if (sz > 4)
 	{
-		if (!strcmp(full + dir_len + sz - 4, ".gmi"))
+		if (!strcmp(full + sz - 4, ".gmi"))
 		{
 			type = CNT_GEMTEXT;
-		} else if (!strcmp(full + dir_len + sz - 4, ".fwd"))
+		} else if (!strcmp(full + sz - 4, ".fwd"))
 		{
 			type = CNT_REDIR;
-		} else if (!strcmp(full + dir_len + sz - 4, ".cgi"))
+		} else if (!strcmp(full + sz - 4, ".cgi"))
 		{
 			handle_cgi(client, full);
 			goto end;
@@ -146,6 +78,14 @@ err:
 	write(client->fd, &sz, sizeof(uint64_t));
 
 end:
+	if (full)
+	{
+		free(full);
+	}
+	if (cwd)
+	{
+		free(cwd);
+	}
 	return;
 }
 
@@ -185,25 +125,18 @@ always_inline int handle_client(client_t* client)
 		break;
 		/* Receive client->uri */
 		case 3:
-			while (true)
+			tmp = read(client->fd, client->uri + client->csz, client->sz - client->csz);
+			if (tmp >= 0)
 			{
-				tmp = read(client->fd, client->uri + client->csz, client->sz - client->csz);
-				if (tmp >= 0)
+				client->csz += tmp;
+				if (client->csz == client->sz)
 				{
-					client->csz += tmp;
-					if (client->csz == client->sz)
-					{
-						handle_req(client);
-						return 1;
-					}
-				} else
-				{
-					if (errno != EWOULDBLOCK)
-					{
-						return -2;
-					}
-					break;
+					handle_req(client);
+					return 1;
 				}
+			} else if (errno != EWOULDBLOCK)
+			{
+				return -2;
 			}
 		break;
 		default:
@@ -215,6 +148,7 @@ always_inline int handle_client(client_t* client)
 int main(int argc, char* argv[])
 {
 	int tmp;
+	int sig;
 	int server;
 	int reuse = 1;
 	int clientc = 0;
@@ -227,14 +161,12 @@ int main(int argc, char* argv[])
 	client_t* client;
 	client_t clients[MAXCLIENTS];
 
-	if (argc < 3)
+	if (argc < 2)
 	{
-		fprintf(stderr, "Usage: %s <port> <dir>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <port>\n", argv[0]);
 		return -1;
 	}
 	port = atoi(argv[1]);
-	realpath(argv[2], dir);
-	dir_len = strlen(dir);
 	server = socket(AF_INET, SOCK_STREAM, 0);
 	if (server < 0)
 	{
@@ -260,10 +192,10 @@ int main(int argc, char* argv[])
 	loop_init(&loop);
 	printf("Ares " VERSION " listening on port %d...\n", port);
 
-	loop.xfd = loop_add_sigs(&loop, SIGINT, SIGTERM, SIGCHLD, NULL);
+	sig = loop_add_sigs(&loop, SIGINT, SIGTERM, SIGCHLD, NULL);
 	loop_add_fd(&loop, server);
 	loop_run(loop, {}, {
-		if (loop_fd == loop.xfd)
+		if (loop_fd == sig)
 		{
 			read(loop_fd, &si, sizeof(si));
 			if (si.ssi_signo == SIGCHLD)

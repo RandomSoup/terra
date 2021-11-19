@@ -41,10 +41,8 @@ void gem_parse(gem_t* dst, char* src)
 			{
 				dst->str = ws;
 			}
-		} else if ((ws = strchr(src, '\n')))
-		{
-			*ws = 0x00;
 		}
+		strdel(src, '\n');
 		goto end;
 	}	
 	switch (*src)
@@ -92,27 +90,4 @@ void gem_parse(gem_t* dst, char* src)
 
 end:
 	return;
-}
-
-int gem_parse_next(gem_t* gem, char* str)
-{
-	char* lf;
-	int rt = 0;
-
-	if (!gem->rnt)
-	{
-		gem->rnt = str;
-	}
-
-	lf = strchr(gem->rnt, '\n');
-	if (lf)
-	{
-		*lf = 0x00;
-	} else
-	{
-		rt = 1;
-	}
-	gem_parse(gem, gem->rnt);
-	gem->rnt = lf + 1;
-	return rt;
 }

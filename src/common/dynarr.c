@@ -34,7 +34,7 @@ int dynarr_add(dynarr_t* arr, void* ptr)
 
 void* dynarr_get(dynarr_t* arr, size_t i)
 {
-	if (i >= arr->len)
+	if ((ssize_t)i >= arr->len)
 	{
 		return NULL;
 	}

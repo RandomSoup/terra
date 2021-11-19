@@ -23,15 +23,14 @@ static uint32_t palette[] = {
 #ifdef DEF_ABOUT
 /* #embed when? */
 static const char* about =
-	"# Welcome to Rover " VERSION "!\n" \
-	"You can enter any Piper URL in the address bar, and press Enter to navigate, " \
-	"and the up and down arrows to scroll.\n\n" \
-	"## Page index\n\n" \
-	"=> piper://citadel.luminoso.dev Luminoso.dev - Piper Edition\n\n" \
-	"## License & copyright\n\n" \
-	"> Rover is licensed under an ISC-like license.\n" \
+	"# Welcome to Rover " VERSION "!\n"
+	"You can enter any Piper URL in the address bar, and press Enter to navigate, "
+	"and the up and down arrows to scroll.\n\n"
+	"## Page index\n\n"
+	"=> piper://citadel.luminoso.dev Luminoso.dev - Piper Edition\n\n"
+	"## License & copyright\n\n"
+	"> Rover is licensed under an ISC-like license.\n"
 	"> The Spleen font by Frederic Cambus is licensed under the Simplified BSD License.\n"
-	"> The cwalk library by Leonard Ikle is licensed under the MIT License.\n"
 ;
 #undef DEF_ABOUT
 #endif
