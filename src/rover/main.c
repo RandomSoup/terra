@@ -3,6 +3,7 @@
 
 int main(int argc, char* argv[])
 {
+	char* tmp;
 	gui_t gui;
 	loop_t loop;
 	surf_t surfs[] = {
@@ -63,9 +64,18 @@ int main(int argc, char* argv[])
 			{
 				if (piper.type == CNT_REDIR)
 				{
-					free(rover.url);
-					rover.url = rover_resolve_path(&piper, piper.buff);
-					rover.pending = true;
+					tmp = rover_resolve_path(&piper, piper.buff);
+					/* Basic anti-loop */
+					if (strcmp(rover.url, tmp))
+					{
+						free(rover.url);
+						rover.url = tmp;
+						rover.pending = true;
+					} else
+					{
+						free(tmp);
+						rover_render(&rover);
+					}
 				} else
 				{
 					rover_render(&rover);

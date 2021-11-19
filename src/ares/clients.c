@@ -3,7 +3,6 @@
 int clients_set(client_t* clients, int fd)
 {
 	int hash;
-	int flags;
 
 	hash = fd & (MAXCLIENTS - 1);
 	while (clients[hash].stage)
@@ -16,8 +15,7 @@ int clients_set(client_t* clients, int fd)
 	}
 	clients[hash].fd = fd;
 	clients[hash].stage = 1;
-	flags = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	set_nonblock(fd);
 	return hash;
 }
 
