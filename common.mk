@@ -1,11 +1,13 @@
-OPTFLAGS:=-O3 -ffast-math -flto
+OPTFLAGS:=-O3 -ffast-math
+ifeq ($(RELEASE),)
+	OPTFLAGS+=-g
+else
+	OPTFLAGS+=-flto
+endif
+
 WARNINGS:=-Wall -Wextra -Wno-pointer-arith -Wno-unused-parameter
 CFLAGS:=-std=c17 $(OPTFLAGS) $(WARNINGS)
 LDFLAGS:=$(OPTFLAGS)
-
-ifeq ($(RELEASE),)
-	OPTFLAGS+=-g
-endif
 
 all:
 

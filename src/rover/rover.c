@@ -202,7 +202,7 @@ void rover_click_cb(int button, int x, int y, void* udata)
 		link = dynarr_get(links, i);
 		if (link->line == row)
 		{
-			rover->url = rover_resolve_path(rover->piper, link->url);
+			rover->url = rover_resolve_path(rover->piper, link->url, false);
 			rover->pending = true;
 			break;
 		}
@@ -262,20 +262,94 @@ void rover_key_cb(int sym, void* udata)
 	return;
 }
 
-/*
- * Stolen^WAdapted from libpiper's `piper_resolve_url`
- * https://github.com/RandomSoup/libpiper/blob/5fcee501a7c20abeb3ac2a745da6d733fbfc64ee/src/common.c#L153
- * 
- */
-char* rover_resolve_path(piper_t* piper, char* target)
+static char* rover_path_del(char* path, size_t path_sz, char* part, size_t part_sz)
+{
+	char* last;
+	size_t tmp_sz;
+
+	last = part - 1;
+	while (*last != '/' && last >= path)
+	{
+		last--;
+	}
+	if (part + part_sz <= path + path_sz)
+	{
+		tmp_sz = strlen(part + part_sz);
+		memmove(++last, part + part_sz, tmp_sz);
+		last[tmp_sz] = 0x00;
+	}
+	return path;
+}
+
+char* rover_path_normalize(char* path)
 {
 	size_t i;
-	size_t uri_sz;
-	size_t target_sz;
-	size_t last_slash = 0;
+	size_t sz;
+	char* next;
+	bool do_parent;
+
+	next = path;
+	do_parent = true;
+	while (*next)
+	{
+		if (*next == '/')
+		{
+			if (next[1] == '/')
+			{
+				i = 1;
+				while (next[i] == '/')
+				{
+					i++;
+				}
+				sz = strlen(next + i);
+				memcpy(next, next + i, sz);
+				next[sz] = 0x00;
+			} else if (next[1] == '.' && next[2] == '/')
+			{
+				sz = strlen(next + 2);
+				memcpy(next, next + 2, sz);
+				next[sz] = 0x00;
+			} else if (do_parent && !strncmp(next, "/../", 4))
+			{
+				rover_path_del(path, strlen(path), next, PARENT_SZ);
+				if (!strncmp(path, PARENT, PARENT_SZ))
+				{
+					do_parent = false;
+				}
+			}
+		}
+		next++;
+	}
+	return path;
+}
+
+static char* rover_path_join(char* dst, char* base, size_t base_sz, char* path, size_t path_sz, size_t max_sz)
+{
+	if (*base != '/')
+	{
+		*dst = '/';
+		dst++;
+	}
+	memcpy(dst, base, base_sz);
+	if (dst[base_sz - 1] != '/')
+	{
+		dst[base_sz] = '/';
+		base_sz++;
+	}
+	memcpy(dst + base_sz, path, path_sz);
+	dst[base_sz + path_sz] = 0x00;
+	return rover_path_normalize(--dst);
+}
+
+char* rover_resolve_path(piper_t* piper, char* target, bool redir)
+{
 	char* rt;
-	char* old_uri;
-	char* new_uri;
+	size_t total_sz;
+	size_t host_sz;
+	size_t port_sz;
+	size_t hp_sz;
+	size_t old_sz;
+	size_t target_sz;
 
 	if (strsubs(target, PIPER))
 	{
@@ -285,31 +359,28 @@ char* rover_resolve_path(piper_t* piper, char* target)
 		asprintf(&rt, "%s:%s%s", piper->host, piper->port, target);
 	} else
 	{
-		old_uri = piper->uri;
-		uri_sz = strlen(old_uri);
-		for (size_t j = 0; j < uri_sz; j++)
+		host_sz = strlen(piper->host);
+		port_sz = strlen(piper->port);
+		hp_sz = host_sz + port_sz + 1;
+		rover_path_normalize(piper->uri);
+		if (redir)
 		{
-			i = uri_sz - uri_sz - 1;
-			if (old_uri[i] == '/')
-			{
-				last_slash = i;
-				break;
-			}
+			old_sz = strlen(piper->uri);
+			rover_path_del(piper->uri, old_sz, piper->uri + old_sz, 0);
 		}
-
+		rover_path_normalize(target);
+		old_sz = strlen(piper->uri);
 		target_sz = strlen(target);
-		uri_sz = last_slash + target_sz;
-
-		new_uri = malloc(uri_sz + 1);
-		if (!new_uri)
+		total_sz = hp_sz + old_sz + target_sz + 4;
+		rt = malloc(total_sz);
+		if (!rt)
 		{
 			return NULL;
 		}
-		memcpy(new_uri, old_uri, last_slash);
-		memcpy(&new_uri[last_slash], target, target_sz);
-		new_uri[uri_sz] = 0x00;
-		asprintf(&rt, "%s:%s/%s", piper->host, piper->port, new_uri);
-		free(new_uri);
+		memcpy(rt, piper->host, host_sz);
+		rt[host_sz] = ':';
+		memcpy(rt + host_sz + 1, piper->port, port_sz);
+		rover_path_join(rt + hp_sz, piper->uri, old_sz, target, target_sz, total_sz - hp_sz);
 	}
 	return rt;
 }

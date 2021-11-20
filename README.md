@@ -40,7 +40,8 @@ for more info.
 
 Rover's design was inspired by [Castor9][3], a Plan 9 Gemini browser, and
 uses the [Spleen][4] font, that is licensed under a Simplified BSD License.
-The relative URL resolution code was adapted from [`libpiper`][5]'s, with permission.
+The original relative URL resolution code was adapted from [`libpiper`][5]'s,
+with permission.
 
 [1]: https://github.com/Luminoso-256/piper
 [2]: https://github.com/RandomSoup/blob/master/LICENSE

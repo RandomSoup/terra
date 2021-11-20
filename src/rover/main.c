@@ -47,7 +47,6 @@ int main(int argc, char* argv[])
 	draw_fill((surf_t*)&gui, BGCOLOR);
 
 	loop_init(&loop);
-	loop_add_fd(&loop, piper.fd);
 	loop_add_fd(&loop, gui.fd);
 	loop_run(loop, {
 		if (rover.pending)
@@ -64,7 +63,7 @@ int main(int argc, char* argv[])
 			{
 				if (piper.type == CNT_REDIR)
 				{
-					tmp = rover_resolve_path(&piper, piper.buff);
+					tmp = rover_resolve_path(&piper, piper.buff, true);
 					/* Basic anti-loop */
 					if (strcmp(rover.url, tmp))
 					{
@@ -87,6 +86,7 @@ int main(int argc, char* argv[])
 		}
 	});
 
+	free(rover.url);
 	dynarr_free(&lines);
 	dynarr_free(&links);
 	loop_destroy(&loop);

@@ -3,6 +3,7 @@
 void gem_parse(gem_t* dst, char* src)
 {
 	char* ws;
+	char* lf;
 
 	if (src[0] == '`' && src[1] == '`' && src[2] == '`')
 	{
@@ -20,7 +21,7 @@ void gem_parse(gem_t* dst, char* src)
 	{
 		src += 2;
 		dst->type = EL_LINK;
-		while (isblank(*src))
+		while (isspace(*src))
 		{
 			src++;
 		}
@@ -30,19 +31,21 @@ void gem_parse(gem_t* dst, char* src)
 		}
 		dst->url = src;
 		dst->str = dst->url;
-		if ((ws = strchr(src, ' ')))
+		ws = strchrnul(src, ' ');
+		lf = strchrnul(src, '\n');
+		if (ws < lf)
 		{
 			*ws = 0x00;
 			do
 			{
 				ws++;
-			} while (isblank(*ws));
+			} while (isspace(*ws));
 			if (*ws)
 			{
 				dst->str = ws;
 			}
 		}
-		strdel(src, '\n');
+		*lf = 0x00;
 		goto end;
 	}	
 	switch (*src)

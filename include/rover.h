@@ -27,6 +27,8 @@
 	uint32_t stride; \
 	uint64_t sz; \
 	uint8_t* map;
+#define PARENT "/../"
+#define PARENT_SZ (sizeof(PARENT) - 1)
 
 typedef enum el_t
 {
@@ -168,6 +170,6 @@ void rover_load(rover_t* rover);
 void rover_utf8_cb(char* utf8, int len, void* udata);
 void rover_key_cb(int key, void* udata);
 void rover_click_cb(int button, int x, int y, void* udata);
-char* rover_resolve_path(piper_t* piper, char* src);
+char* rover_resolve_path(piper_t* piper, char* src, bool redir);
 
 #endif /* !ROVER_H */
