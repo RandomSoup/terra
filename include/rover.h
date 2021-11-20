@@ -29,6 +29,7 @@
 	uint8_t* map;
 #define PARENT "/../"
 #define PARENT_SZ (sizeof(PARENT) - 1)
+#define ABOUT_SZ (sizeof(about) - 1)
 
 typedef enum el_t
 {

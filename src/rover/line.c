@@ -12,10 +12,6 @@ int line_next(line_t* line, cur_t* cur)
 	gem_t* gem;
 
 	ptr = cur->str + cur->off;
-	if (!mbrtoc32(NULL, ptr, MB_CUR_MAX, &mbs))
-	{
-		return -1;
-	}
 	if (cur->is_gem)
 	{
 		gem = &cur->gem;

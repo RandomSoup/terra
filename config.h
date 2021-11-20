@@ -22,7 +22,7 @@ static uint32_t palette[] = {
 
 #ifdef DEF_ABOUT
 /* #embed when? */
-static const char* about =
+static const char about[] =
 	"# Welcome to Rover " VERSION "!\n"
 	"You can enter any Piper URL in the address bar, and press Enter to navigate, "
 	"and the up and down arrows to scroll.\n\n"

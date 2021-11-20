@@ -112,7 +112,7 @@ void rover_render(rover_t* rover)
 	rover->cur->type = EL_IGNORE;
 	rover->cur->str = piper->buff;
 	rover->cur->is_gem = piper->type == CNT_GEMTEXT;
-	while (!line_next(&line, rover->cur))
+	while (rover->cur->off < piper->sz && !line_next(&line, rover->cur))
 	{
 		if (line.type != EL_IGNORE)
 		{
@@ -151,6 +151,7 @@ void rover_load(rover_t* rover)
 	{
 		piper->buff = strdup(about);
 		piper->fd = -1;
+		piper->sz = ABOUT_SZ;
 		rover_render(rover);
 	} else if (piper_build(piper, rover->url))
 	{
@@ -202,6 +203,10 @@ void rover_click_cb(int button, int x, int y, void* udata)
 		link = dynarr_get(links, i);
 		if (link->line == row)
 		{
+			if (rover->url)
+			{
+				free(rover->url);
+			}
 			rover->url = rover_resolve_path(rover->piper, link->url, false);
 			rover->pending = true;
 			break;
@@ -275,13 +280,13 @@ static char* rover_path_del(char* path, size_t path_sz, char* part, size_t part_
 	if (part + part_sz <= path + path_sz)
 	{
 		tmp_sz = strlen(part + part_sz);
-		memmove(++last, part + part_sz, tmp_sz);
+		memcpy(++last, part + part_sz, tmp_sz);
 		last[tmp_sz] = 0x00;
 	}
 	return path;
 }
 
-char* rover_path_normalize(char* path)
+static char* rover_path_normalize(char* path)
 {
 	size_t i;
 	size_t sz;
