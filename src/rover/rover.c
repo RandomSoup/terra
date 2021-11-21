@@ -144,6 +144,7 @@ void rover_load(rover_t* rover)
 	}
 	piper->off = 0;
 	piper->stage = 0;
+	rover->lineno = 0;
 	rover->pending = false;
 	piper_free(piper);
 	rover->status = LOADING;
