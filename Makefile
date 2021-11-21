@@ -1,3 +1,5 @@
+PROJECT:=terra
+
 include common.mk
 
 CFLAGS+=-I./ -I./include
@@ -10,6 +12,7 @@ $(eval $(call decl,pcgi,pcgi))
 $(eval $(call exec,rover,$(OBJ_common)))
 $(eval $(call exec,ares,$(OBJ_common)))
 $(eval $(call arlib,pcgi,./build/common/util.o))
+$(eval $(call dev,common pcgi))
 
 LDFLAGS_rover:=$(shell pkg-config --libs x11) -lutil
 LDFLAGS_ares:=-lrt

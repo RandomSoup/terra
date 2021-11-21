@@ -3,9 +3,12 @@
 always_inline void handle_dir(client_t* client, char* path)
 {
 	DIR* dir;
+	int fd;
+	struct stat st;
 	struct dirent* ent;
 	uint64_t sz;
 	uint8_t type = CNT_GEMTEXT;
+	char* index;
 
 	dir = opendir(path);
 	if (!dir)
@@ -15,6 +18,17 @@ always_inline void handle_dir(client_t* client, char* path)
 	sz = htole64(UINT64_MAX);
 	write(client->fd, &type, 1);
 	write(client->fd, &sz, sizeof(uint64_t));
+
+	asprintf(&index, "%s/index.gmi", path);
+	if (!stat(index, &st) && (st.st_mode & S_IFMT) == S_IFREG)
+	{
+		fd = open(index, O_RDONLY);
+		sendfile(client->fd, fd, NULL, st.st_size);
+		close(fd);
+		write(client->fd, "\n#", 2);
+	}
+	free(index);
+
 	write(client->fd, DIR_HDR, DIR_HDR_SZ);
 	while ((ent = readdir(dir)))
 	{
@@ -62,14 +76,21 @@ always_inline void handle_req(client_t* client)
 	struct stat st;
 	char* cwd = NULL;
 	char* full = NULL;
-	char tmp[UINT16_MAX + 8];
-
-	client->uri[client->sz] = 0x00;
-	printf("Requested %s\n", client->uri);
-	strdel(client->uri, '?');
+	char tmp[UINT16_MAX + 8] = "./";
 
 	cwd = getcwd(NULL, 0);
-	sprintf(tmp, "./%s", client->uri);
+
+	if (client->uri)
+	{
+		client->uri[client->sz] = 0x00;
+		printf("Requested %s\n", client->uri);
+		sprintf(tmp, "./%s", client->uri);
+		strdel(client->uri, '?');
+	} else
+	{
+		printf("Void request\n");
+	}
+
 	full = realpath(tmp, NULL);
 	if (!cwd || !full || !strsubs(full, cwd))
 	{
@@ -115,6 +136,10 @@ err:
 	write(client->fd, &sz, sizeof(uint64_t));
 
 end:
+	if (client->uri)
+	{
+		free(client->uri);
+	}
 	if (full)
 	{
 		free(full);
@@ -139,6 +164,10 @@ always_inline int handle_client(client_t* client)
 			if (tmp == sizeof(uint16_t))
 			{
 				client->sz = le16toh(client->sz);
+				if (!client->sz)
+				{
+					goto handle;
+				}
 				client->uri = malloc(client->sz + 1);
 				if (!client->uri)
 				{
@@ -168,6 +197,7 @@ always_inline int handle_client(client_t* client)
 				client->csz += tmp;
 				if (client->csz == client->sz)
 				{
+handle:
 					handle_req(client);
 					return 1;
 				}
@@ -200,10 +230,14 @@ int main(int argc, char* argv[])
 
 	if (argc < 2)
 	{
-		fprintf(stderr, "Usage: %s <port>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <port> <dir>\n", argv[0]);
 		return -1;
 	}
 	port = atoi(argv[1]);
+	if (argc >= 3)
+	{
+		chdir(argv[2]);
+	}
 	server = socket(AF_INET, SOCK_STREAM, 0);
 	if (server < 0)
 	{
