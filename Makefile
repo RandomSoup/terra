@@ -12,3 +12,4 @@ $(eval $(call exec,ares,$(OBJ_common)))
 $(eval $(call arlib,pcgi,./build/common/util.o))
 
 LDFLAGS_rover:=$(shell pkg-config --libs x11) -lutil
+LDFLAGS_ares:=-lrt

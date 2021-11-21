@@ -11,8 +11,9 @@
 #include <sys/epoll.h>
 #include <sys/sendfile.h>
 #include <sys/wait.h>
+#include <sys/timerfd.h>
 
-#define VERSION "v0.2.0"
+#define VERSION "v0.3.0"
 #define ADDRLEN sizeof(struct sockaddr_in)
 /* Has to be a power of 2 */
 #define MAXCLIENTS 128
@@ -22,10 +23,13 @@
 #define DIR_HDR_SZ (sizeof(DIR_HDR) - 1)
 #define DIR_FTR "> Ares " VERSION "\n"
 #define DIR_FTR_SZ (sizeof(DIR_FTR) - 1)
+/* Around 750 milliseconds (as nanoseconds) */
+#define TIMEOUT 719 << 20
 
 typedef struct packed client_t
 {
 	int fd;
+	int timer;
 	char* uri;
 	union
 	{
@@ -36,8 +40,8 @@ typedef struct packed client_t
 	uint16_t csz;
 } client_t;
 
-int clients_set(client_t* clients, int fd);
-client_t* clients_get(client_t* clients, int fd);
-void clients_del(client_t* clients, int fd);
+client_t* client_add(client_t* clients, int fd);
+client_t* client_get_or_timeout(client_t* clients, int fd);
+void client_close(client_t* client);
 
 #endif /* !ARES_H */

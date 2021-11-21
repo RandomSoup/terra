@@ -253,16 +253,20 @@ int main(int argc, char* argv[])
 			{
 				close(tmp);
 			}
-			clients_set(clients, tmp);
+			client = client_add(clients, tmp);
 			loop_add_fd(&loop, tmp);
+			loop_add_fd(&loop, client->timer);
 			clientc++;
 		} else
 		{
-			client = clients_get(clients, loop_fd);
-			if (client && handle_client(client))
+			client = client_get_or_timeout(clients, loop_fd);
+			if (!client)
 			{
-				close(loop_fd);
-				clients_del(clients, loop_fd);
+				clientc--;
+			} else if (handle_client(client))
+			{
+				client_close(client);
+				clientc--;
 			}
 		}
 	});
