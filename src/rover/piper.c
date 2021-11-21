@@ -136,7 +136,7 @@ void piper_handle(piper_t* piper)
 			{
 				goto close_stage;
 			}
-			tmp = realloc(piper->buff, piper->off + piper->rem);
+			tmp = realloc(piper->buff, piper->off + piper->rem + 1);
 			if (!tmp)
 			{
 				free(piper->buff);
@@ -150,7 +150,8 @@ void piper_handle(piper_t* piper)
 				goto close_stage;
 			} else if (rt == 0)
 			{
-				piper->buff[piper->off] = 0x00;
+				piper->sz = piper->off - 1;
+				piper->buff[piper->sz] = 0x00;
 				goto close_stage;
 			}
 		break;

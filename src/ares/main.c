@@ -1,5 +1,37 @@
 #include "ares.h"
 
+always_inline void handle_dir(client_t* client, char* path)
+{
+	DIR* dir;
+	struct dirent* ent;
+	uint64_t sz;
+	uint8_t type = CNT_GEMTEXT;
+
+	dir = opendir(path);
+	if (!dir)
+	{
+		return;
+	}
+	sz = htole64(UINT64_MAX);
+	write(client->fd, &type, 1);
+	write(client->fd, &sz, sizeof(uint64_t));
+	write(client->fd, DIR_HDR, DIR_HDR_SZ);
+	while ((ent = readdir(dir)))
+	{
+		if (*ent->d_name == '.')
+		{
+			continue;
+		}
+		write(client->fd, "=> ", LINK_SZ);
+		write(client->fd, ent->d_name, strlen(ent->d_name));
+		write(client->fd, "\n", 1);
+	}
+	write(client->fd, DIR_FTR, DIR_FTR_SZ);
+	closedir(dir);
+	close(client->fd);
+	return;
+}
+
 always_inline void handle_cgi(client_t* client, char* path)
 {
 	int ps[2];
@@ -47,6 +79,11 @@ always_inline void handle_req(client_t* client)
 	if (stat(full, &st))
 	{
 		goto err;
+	}
+	if ((st.st_mode & S_IFMT) == S_IFDIR)
+	{
+		handle_dir(client, full);
+		goto end;
 	}
 	type = CNT_UTF8;
 	sz = strlen(full);

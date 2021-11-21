@@ -4,6 +4,7 @@
 #include "common.h"
 
 #include <limits.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -15,6 +16,12 @@
 #define ADDRLEN sizeof(struct sockaddr_in)
 /* Has to be a power of 2 */
 #define MAXCLIENTS 128
+#define LINK "=> "
+#define LINK_SZ (sizeof(LINK) - 1)
+#define DIR_HDR "# Directory listing\n=> ..\n"
+#define DIR_HDR_SZ (sizeof(DIR_HDR) - 1)
+#define DIR_FTR "> Ares " VERSION "\n"
+#define DIR_FTR_SZ (sizeof(DIR_FTR) - 1)
 
 typedef struct packed client_t
 {
