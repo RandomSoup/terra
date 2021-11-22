@@ -1,7 +1,7 @@
 #ifndef ARES_H
 #define ARES_H
 
-#include "common.h"
+#include "terra_internal.h"
 
 #include <limits.h>
 #include <dirent.h>
@@ -13,7 +13,6 @@
 #include <sys/wait.h>
 #include <sys/timerfd.h>
 
-#define VERSION "v0.3.0"
 #define ADDRLEN sizeof(struct sockaddr_in)
 /* Has to be a power of 2 */
 #define MAXCLIENTS 128
@@ -25,8 +24,9 @@
 #define DIR_FTR_SZ (sizeof(DIR_FTR) - 1)
 /* Around 750 milliseconds (as nanoseconds) */
 #define TIMEOUT 719 << 20
+#define VERSION "v0.3.0"
 
-typedef struct packed client_t
+typedef struct tr_packed client_t
 {
 	int fd;
 	int timer;

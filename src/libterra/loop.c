@@ -1,4 +1,4 @@
-#include "common.h"
+#include "terra_internal.h"
 
 int loop_init(loop_t* loop)
 {

@@ -8,11 +8,15 @@ rules imposed by working with raw binary data with defined characteristics
 it's a simpler alternative to other protocols like Gopher, Gemini, or HTTP.
 
 ## What is included?
-Currently the package includes three tools:
+Currently the package includes four tools:
  + Rover: A graphical Piper client with Gemtext support.
  + Ares: A simple proof-of-concept server with PCGI support.
  + PCGI: A simple protocol and library to build CGI-like applications on
  top of Piper.
+ + `libterra`: A (dynamic and static) library to access the self-contained
+ components of the other tools. This currently includes a Piper client with
+ both a low-level and higher-level interface, Piper path resolution, a Gemtext
+ parser, dynamic strings and arrays, and an `epoll`-based event loop.
 
 ## Dependencies
 To build the package you'll need a GNU-compatible `make` and a C11/17 compiler.

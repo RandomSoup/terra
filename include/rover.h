@@ -1,24 +1,17 @@
 #ifndef ROVER_H
 #define ROVER_H
 
-#include "common.h"
+#include "terra_internal.h"
 
 #include <uchar.h>
 #include <time.h>
-#include <ctype.h>
-
-#include <sys/ioctl.h>
-#include <netinet/tcp.h>
-#include <linux/sockios.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
-#define PIPER "piper://"
 #define ABOUT "about:"
 #define SURFW (MAXC * FONTW + XOFF * 2)
-#define VERSION "v0.4.0"
 #define LOADING "Loading..."
 #define SURF \
 	uint8_t bpp; /* Bytes per pixel, not bits */ \
@@ -27,49 +20,8 @@
 	uint32_t stride; \
 	uint64_t sz; \
 	uint8_t* map;
-#define PARENT "/../"
-#define PARENT_SZ (sizeof(PARENT) - 1)
 #define ABOUT_SZ (sizeof(about) - 1)
-
-typedef enum el_t
-{
-	EL_H1,
-	EL_H2,
-	EL_H3,
-	EL_PRE,
-	EL_TEXT,
-	EL_LINK,
-	EL_ITEM,
-	EL_QUOTE,
-	EL_IGNORE
-} el_t;
-
-typedef struct piper_t
-{
-	int fd;
-	int stage;
-	size_t off;
-	size_t rem;
-
-	struct packed
-	{
-		char* url;
-		char* uri;
-		char* host;
-		char* port;
-	};
-
-	union
-	{
-		struct packed
-		{
-			uint8_t type;
-			uint64_t sz;
-		};
-		uint8_t hdr[sizeof(uint64_t) + 1];
-	};
-	char* buff;
-} piper_t;
+#define VERSION "v0.4.0"
 
 typedef struct surf_t
 {
@@ -100,14 +52,6 @@ typedef struct gui_t
 	} cbs;
 } gui_t;
 
-typedef struct gem_t
-{
-	bool pre;
-	char* str;
-	char* url;
-	el_t type;
-} gem_t;
-
 typedef struct cur_t
 {
 	el_t type;
@@ -117,14 +61,14 @@ typedef struct cur_t
 	uint32_t off;
 } cur_t;
 
-typedef struct packed line_t
+typedef struct tr_packed line_t
 {
 	uint32_t off : 29;
 	el_t type : 4;
 	uint8_t sz : 7;
 } line_t;
 
-typedef struct packed link_t
+typedef struct tr_packed link_t
 {
 	char* url;
 	uint32_t line;
@@ -144,11 +88,6 @@ typedef struct rover_t
 	char* url;
 	const char* status;
 } rover_t;
-
-int piper_build(piper_t* piper, const char* url);
-int piper_start(piper_t* piper);
-void piper_handle(piper_t* piper);
-void piper_free(piper_t* piper);
 
 int gui_init(gui_t* gui);
 bool gui_handle(gui_t* gui);
@@ -171,6 +110,5 @@ void rover_load(rover_t* rover);
 void rover_utf8_cb(char* utf8, int len, void* udata);
 void rover_key_cb(int key, void* udata);
 void rover_click_cb(int button, int x, int y, void* udata);
-char* rover_resolve_path(piper_t* piper, char* src, bool redir);
 
 #endif /* !ROVER_H */

@@ -1,7 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
-
-#define _GNU_SOURCE
+#ifndef TERRA_H
+#define TERRA_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,46 +7,26 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <stdarg.h>
 #include <unistd.h>
 
-#include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
-#include <endian.h>
-#include <netdb.h>
-
 #include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/signalfd.h>
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#define TR_MAXEVS 32
 
 #ifdef __has_attribute
 #	if __has_attribute(always_inline)
-#		define always_inline static inline __attribute__((always_inline))
+#		define tr_always_inline static inline __attribute__((always_inline))
 #	else
-#		define always_inline static inline
+#		define tr_always_inline static inline
 #	endif
 #	if __has_attribute(packed)
-#		define packed __attribute__((packed))
+#		define tr_packed __attribute__((packed))
 #	else
-#		define packed
+#		define tr_packed
 #	endif
 #else
-#	define always_inline static inline
-#	define packed
-#endif
-
-#define MAXEVS 32
-
-#ifndef FALSE
-#	define FALSE 0
-#endif
-
-#ifndef TRUE
-#	define TRUE !FALSE
+#	define tr_always_inline static inline
+#	define tr_packed
 #endif
 
 typedef enum cnt_t
@@ -67,7 +45,7 @@ typedef struct loop_t
 {
 	int efd;
 	bool run;
-	struct epoll_event evs[MAXEVS];
+	struct epoll_event evs[TR_MAXEVS];
 } loop_t;
 
 typedef struct dynarr_t
@@ -85,6 +63,61 @@ typedef struct dynstr_t
 	ssize_t len; /* Used */
 } dynstr_t;
 
+typedef struct piper_t
+{
+	int fd;
+	int stage;
+	size_t off;
+	size_t rem;
+
+	struct tr_packed
+	{
+		char* url;
+		char* uri;
+		char* host;
+		char* port;
+	};
+
+	union
+	{
+		struct tr_packed
+		{
+			uint8_t type;
+			uint64_t sz;
+		};
+		uint8_t hdr[sizeof(uint64_t) + 1];
+	};
+	char* buff;
+} piper_t;
+
+typedef struct pget_t
+{
+	piper_t piper;
+	loop_t loop;
+	void* udata;
+} pget_t;
+
+typedef enum el_t
+{
+	EL_H1,
+	EL_H2,
+	EL_H3,
+	EL_PRE,
+	EL_TEXT,
+	EL_LINK,
+	EL_ITEM,
+	EL_QUOTE,
+	EL_IGNORE
+} el_t;
+
+typedef struct gem_t
+{
+	bool pre;
+	char* str;
+	char* url;
+	el_t type;
+} gem_t;
+
 int loop_init(loop_t* loop);
 int loop_add_fd(loop_t* loop, int fd);
 int loop_add_sigs(loop_t* loop, ...);
@@ -96,10 +129,11 @@ void loop_destroy(loop_t* loop);
 	int loop_fd = 0; \
 	int loop_fdc = 0; \
 	loop.run = true; \
+	(void)loop_i; (void)loop_fd; (void)loop_fdc; \
 	while (loop.run) \
 	{ \
 		before; \
-		loop_fdc = epoll_wait(loop.efd, loop.evs, MAXEVS, -1); \
+		loop_fdc = epoll_wait(loop.efd, loop.evs, TR_MAXEVS, -1); \
 		if (loop_fdc < 0) \
 		{ \
 			break; \
@@ -124,10 +158,15 @@ int dynstr_alloc(dynstr_t* str, size_t sz);
 int dynstr_set(dynstr_t* str, char* ptr);
 void dynstr_free(dynstr_t* str);
 
-/* Utility functions */
-size_t strsubs(const char* str, const char* sub);
-const char* strskip(const char* str, const char* sub);
-char* strdel(char* str, char chr);
-int set_nonblock(int fd);
+int piper_build(piper_t* piper, const char* url);
+int piper_start(piper_t* piper);
+void piper_handle(piper_t* piper);
+void piper_free(piper_t* piper);
+char* piper_path_resolve(piper_t* piper, char* src, bool redir);
 
-#endif /* !COMMON_H */
+pget_t* pget_easy_new();
+int pget_easy_start(pget_t* pget, const char* url);
+int pget_easy_get(pget_t* pget);
+void pget_easy_free(pget_t* pget);
+
+#endif /* !TERRA_H */

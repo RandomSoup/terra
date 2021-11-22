@@ -35,12 +35,15 @@ install-exec: ./build/$1/$1
 	$$(CC) -o $$@ $$^ $$(LDFLAGS) $$(LDFLAGS_$1)
 endef
 
-define arlib
-all: ./build/$1/lib$1.ar
-install-arlib: ./build/$1/lib$1.ar
+define lib
+all: ./build/$1/$1.ar ./build/$1/$1.so
+install-lib: ./build/$1/$1.ar ./build/$1/$1.so
 
-./build/$1/lib$1.ar: $(OBJ_$1) $2
+./build/$1/$1.ar: $(OBJ_$1) $2
 	$(AR) rcs $$@ $$^ $$(LDFLAGS_$1)
+
+./build/$1/$1.so: $(OBJ_$1) $2
+	$(CC) -fPIC -shared -o $$@ $$^ $$(LDFLAGS_$1)
 endef
 
 define dev
@@ -53,10 +56,10 @@ clean:
 install-exec:
 	$(INSTALL) $(IFLAGS) -s $^ -t $(PREFIX)/bin
 
-install-arlib:
+install-lib:
 	$(INSTALL) $(IFLAGS) $^ -t $(PREFIX)/lib
 
 install-dev:
 	$(INSTALL) $(IFLAGS) $^ -t $(PREFIX)/include/$(PROJECT)
 
-install: install-exec install-arlib install-dev
+install: install-exec install-lib install-dev

@@ -4,15 +4,17 @@ include common.mk
 
 CFLAGS+=-I./ -I./include
 
-$(eval $(call decl,common,util loop dynstr dynarr))
-$(eval $(call decl,rover,main piper gui draw line gem rover))
-$(eval $(call decl,ares,main clients))
-$(eval $(call decl,pcgi,pcgi))
+$(eval $(call decl,libterra,util loop dynstr dynarr piper path gem pget))
+$(eval $(call decl,libpcgi,pcgi))
 
-$(eval $(call exec,rover,$(OBJ_common)))
-$(eval $(call exec,ares,$(OBJ_common)))
-$(eval $(call arlib,pcgi,./build/common/util.o))
-$(eval $(call dev,common pcgi))
+$(eval $(call decl,rover,main gui draw line rover))
+$(eval $(call decl,ares,main clients))
+
+$(eval $(call exec,rover,$(OBJ_libterra)))
+$(eval $(call exec,ares,$(patsubst %,./build/libterra/%.o,util loop dynarr)))
+$(eval $(call lib,libpcgi,$(patsubst %,./build/libterra/%.o,util)))
+$(eval $(call lib,libterra))
+$(eval $(call dev,terra pcgi))
 
 LDFLAGS_rover:=$(shell pkg-config --libs x11) -lutil
 LDFLAGS_ares:=-lrt

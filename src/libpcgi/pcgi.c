@@ -1,3 +1,4 @@
+#include "terra_internal.h"
 #include "pcgi.h"
 
 int pcgi_init(pcgi_req_t* req)

@@ -1,4 +1,6 @@
 *.out
 *.o
+*.ar
+*.so
 *.cgi
 build/

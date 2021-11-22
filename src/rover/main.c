@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 			{
 				if (piper.type == CNT_REDIR)
 				{
-					tmp = rover_resolve_path(&piper, piper.buff, true);
+					tmp = piper_path_resolve(&piper, piper.buff, true);
 					/* Basic anti-loop */
 					if (strcmp(rover.url, tmp))
 					{

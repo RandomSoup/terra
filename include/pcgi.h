@@ -1,10 +1,7 @@
 #ifndef PCGI_H
 #define PCGI_H
 
-#include "common.h"
-
-#define PREFIX "PCGI_"
-#define PREFIX_SZ (sizeof(PREFIX) - 1)
+#include "terra.h"
 
 typedef struct pcgi_req_t
 {

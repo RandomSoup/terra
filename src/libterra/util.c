@@ -1,4 +1,4 @@
-#include "common.h"
+#include "terra_internal.h"
 
 size_t strsubs(const char* str, const char* sub)
 {

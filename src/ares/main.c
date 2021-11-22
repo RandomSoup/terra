@@ -1,6 +1,6 @@
 #include "ares.h"
 
-always_inline void handle_dir(client_t* client, char* path)
+tr_always_inline void handle_dir(client_t* client, char* path)
 {
 	DIR* dir;
 	int fd;
@@ -46,7 +46,7 @@ always_inline void handle_dir(client_t* client, char* path)
 	return;
 }
 
-always_inline void handle_cgi(client_t* client, char* path)
+tr_always_inline void handle_cgi(client_t* client, char* path)
 {
 	int ps[2];
 	pid_t pid;
@@ -68,7 +68,7 @@ always_inline void handle_cgi(client_t* client, char* path)
 	return;
 }
 
-always_inline void handle_req(client_t* client)
+tr_always_inline void handle_req(client_t* client)
 {
 	int fd;
 	uint64_t sz = 0;
@@ -151,7 +151,7 @@ end:
 	return;
 }
 
-always_inline int handle_client(client_t* client)
+tr_always_inline int handle_client(client_t* client)
 {
 	int tmp;
 
