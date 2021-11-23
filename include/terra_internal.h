@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <sys/signalfd.h>
 #include <sys/ioctl.h>
+#include <sys/timerfd.h>
 
 #include <netinet/tcp.h>
 #include <netinet/in.h>
@@ -36,11 +37,5 @@
 #ifndef TRUE
 #	define TRUE !FALSE
 #endif
-
-/* Utility functions */
-size_t strsubs(const char* str, const char* sub);
-const char* strskip(const char* str, const char* sub);
-char* strdel(char* str, char chr);
-int set_nonblock(int fd);
 
 #endif /* !TERRA_INTERNAL_H */

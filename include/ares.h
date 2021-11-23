@@ -11,7 +11,6 @@
 #include <sys/epoll.h>
 #include <sys/sendfile.h>
 #include <sys/wait.h>
-#include <sys/timerfd.h>
 
 #define ADDRLEN sizeof(struct sockaddr_in)
 /* Has to be a power of 2 */

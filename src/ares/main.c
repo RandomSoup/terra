@@ -84,8 +84,8 @@ tr_always_inline void handle_req(client_t* client)
 	{
 		client->uri[client->sz] = 0x00;
 		printf("Requested %s\n", client->uri);
-		sprintf(tmp, "./%s", client->uri);
 		strdel(client->uri, '?');
+		sprintf(tmp, "./%s", client->uri);
 	} else
 	{
 		printf("Void request\n");

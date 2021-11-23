@@ -13,7 +13,7 @@ static char* piper_path_del(char* path, size_t path_sz, char* part, size_t part_
 	if (part + part_sz <= path + path_sz)
 	{
 		tmp_sz = strlen(part + part_sz);
-		memcpy(++last, part + part_sz, tmp_sz);
+		memmove(++last, part + part_sz, tmp_sz);
 		last[tmp_sz] = 0x00;
 	}
 	return path;

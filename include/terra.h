@@ -169,4 +169,12 @@ int pget_easy_start(pget_t* pget, const char* url);
 int pget_easy_get(pget_t* pget);
 void pget_easy_free(pget_t* pget);
 
+void gem_parse(gem_t* dst, char* src);
+
+/* Utility functions */
+size_t strsubs(const char* str, const char* sub);
+const char* strskip(const char* str, const char* sub);
+char* strdel(char* str, char chr);
+int set_nonblock(int fd);
+
 #endif /* !TERRA_H */
