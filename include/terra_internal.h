@@ -38,4 +38,6 @@
 #	define TRUE !FALSE
 #endif
 
+#define STR(exp) #exp
+
 #endif /* !TERRA_INTERNAL_H */

@@ -8,7 +8,7 @@ $(eval $(call decl,libterra,util loop dynstr dynarr piper path gem pget))
 $(eval $(call decl,libpcgi,pcgi))
 
 $(eval $(call decl,rover,main gui draw line rover))
-$(eval $(call decl,ares,main clients))
+$(eval $(call decl,ares,main client cfg mod))
 
 $(eval $(call exec,rover,$(OBJ_libterra)))
 $(eval $(call exec,ares,$(patsubst %,./build/libterra/%.o,util loop dynarr)))

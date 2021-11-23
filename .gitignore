@@ -3,4 +3,5 @@
 *.ar
 *.so
 *.cgi
+*.cfg
 build/

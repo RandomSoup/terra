@@ -1,82 +1,14 @@
 #include "ares.h"
 
-tr_always_inline void handle_dir(client_t* client, char* path)
+tr_always_inline void handle_req(client_t* client, dynarr_t* arr)
 {
-	DIR* dir;
-	int fd;
-	struct stat st;
-	struct dirent* ent;
-	uint64_t sz;
-	uint8_t type = CNT_GEMTEXT;
-	char* index;
-
-	dir = opendir(path);
-	if (!dir)
-	{
-		return;
-	}
-	sz = htole64(UINT64_MAX);
-	write(client->fd, &type, 1);
-	write(client->fd, &sz, sizeof(uint64_t));
-
-	asprintf(&index, "%s/index.gmi", path);
-	if (!stat(index, &st) && (st.st_mode & S_IFMT) == S_IFREG)
-	{
-		fd = open(index, O_RDONLY);
-		sendfile(client->fd, fd, NULL, st.st_size);
-		close(fd);
-		write(client->fd, "\n#", 2);
-	}
-	free(index);
-
-	write(client->fd, DIR_HDR, DIR_HDR_SZ);
-	while ((ent = readdir(dir)))
-	{
-		if (*ent->d_name == '.')
-		{
-			continue;
-		}
-		write(client->fd, "=> ", LINK_SZ);
-		write(client->fd, ent->d_name, strlen(ent->d_name));
-		write(client->fd, "\n", 1);
-	}
-	write(client->fd, DIR_FTR, DIR_FTR_SZ);
-	closedir(dir);
-	close(client->fd);
-	return;
-}
-
-tr_always_inline void handle_cgi(client_t* client, char* path)
-{
-	int ps[2];
-	pid_t pid;
-
-	pipe(ps);
-
-	write(ps[1], &client->sz, sizeof(client->sz));
-	write(ps[1], client->uri, client->sz);
-
-	pid = fork();
-	if (!pid)
-	{
-		close(ps[1]);
-		dup2(ps[0], STDIN_FILENO);
-		dup2(client->fd, STDOUT_FILENO);
-		execl(path, path, NULL);
-	}
-	close(ps[0]);
-	return;
-}
-
-tr_always_inline void handle_req(client_t* client)
-{
-	int fd;
 	uint64_t sz = 0;
 	uint8_t type = 0x22;
 	struct stat st;
 	char* cwd = NULL;
 	char* full = NULL;
 	char tmp[UINT16_MAX + 8] = "./";
+	cfg_t cfg;
 
 	cwd = getcwd(NULL, 0);
 
@@ -92,43 +24,24 @@ tr_always_inline void handle_req(client_t* client)
 	}
 
 	full = realpath(tmp, NULL);
-	if (!cwd || !full || !strsubs(full, cwd))
+	if (!cwd || !full || !strsubs(full, cwd) || stat(full, &st))
 	{
 		goto err;
 	}
+	cfg_get(&cfg, arr->ptr, arr->len, client->uri);
 
-	if (stat(full, &st))
-	{
-		goto err;
-	}
-	if ((st.st_mode & S_IFMT) == S_IFDIR)
-	{
-		handle_dir(client, full);
-		goto end;
-	}
-	type = CNT_UTF8;
+	/* TODO: Implement caching */
 	sz = strlen(full);
-	if (sz > 4)
+	if (cfg.dir && ((st.st_mode & S_IFMT) == S_IFDIR))
 	{
-		if (!strcmp(full + sz - 4, ".gmi"))
-		{
-			type = CNT_GEMTEXT;
-		} else if (!strcmp(full + sz - 4, ".fwd"))
-		{
-			type = CNT_REDIR;
-		} else if (!strcmp(full + sz - 4, ".cgi"))
-		{
-			handle_cgi(client, full);
-			goto end;
-		}
+		mod_dir_handle(client, full);
+	} else if (cfg.cgi)
+	{
+		mod_cgi_handle(client, full);
+	} else
+	{
+		mod_file_handle(client, full, cfg.type, &st);
 	}
-	sz = htole64(st.st_size);
-	fd = open(full, O_RDONLY);
-
-	write(client->fd, &type, 1);
-	write(client->fd, &sz, sizeof(uint64_t));
-	sendfile(client->fd, fd, NULL, st.st_size);
-	close(fd);
 	goto end;
 
 err:
@@ -151,7 +64,7 @@ end:
 	return;
 }
 
-tr_always_inline int handle_client(client_t* client)
+tr_always_inline int handle_client(client_t* client, dynarr_t* cfg)
 {
 	int tmp;
 
@@ -198,7 +111,7 @@ tr_always_inline int handle_client(client_t* client)
 				if (client->csz == client->sz)
 				{
 handle:
-					handle_req(client);
+					handle_req(client, cfg);
 					return 1;
 				}
 			} else if (errno != EWOULDBLOCK)
@@ -216,8 +129,8 @@ int main(int argc, char* argv[])
 {
 	int tmp;
 	int sig;
-	int server;
 	int reuse = 1;
+	int server = 0;
 	int clientc = 0;
 	short port = 60;
 	unsigned int addrlen;
@@ -226,18 +139,27 @@ int main(int argc, char* argv[])
 	struct sockaddr_in client_addr;
 	loop_t loop;
 	client_t* client;
-	client_t clients[MAXCLIENTS];
+	client_t clients[MAXCLIENTS] = { 0x00 };
+	dynarr_t arr;
+	cfg_t* cfg;
 
 	if (argc < 2)
 	{
-		fprintf(stderr, "Usage: %s <port> <dir>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <port> [config_path]\n", argv[0]);
 		return -1;
 	}
 	port = atoi(argv[1]);
-	if (argc >= 3)
+	if (cfg_load(&arr, argc > 2 ? argv[2] : CFG_PATH))
 	{
-		chdir(argv[2]);
+		goto err;
 	}
+	cfg = ((cfg_t*)arr.ptr);
+	/* TODO: Implement multiple roots */
+	if (cfg->root)
+	{
+		chdir(cfg->root);
+	}
+
 	server = socket(AF_INET, SOCK_STREAM, 0);
 	if (server < 0)
 	{
@@ -297,7 +219,7 @@ int main(int argc, char* argv[])
 			if (!client)
 			{
 				clientc--;
-			} else if (handle_client(client))
+			} else if (handle_client(client, &arr))
 			{
 				client_close(client);
 				clientc--;

@@ -1,0 +1,5 @@
+PROP(char*, root)
+PROP(uint8_t, type)
+PROP(uint64_t, cache)
+PROP(bool, cgi)
+PROP(bool, dir)
