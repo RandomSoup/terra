@@ -208,11 +208,13 @@ int main(int argc, char* argv[])
 			if (clientc >= MAXCLIENTS)
 			{
 				close(tmp);
+			} else
+			{
+				client = client_add(clients, tmp);
+				loop_add_fd(&loop, tmp);
+				loop_add_fd(&loop, client->timer);
+				clientc++;
 			}
-			client = client_add(clients, tmp);
-			loop_add_fd(&loop, tmp);
-			loop_add_fd(&loop, client->timer);
-			clientc++;
 		} else
 		{
 			client = client_get_or_timeout(clients, loop_fd);
