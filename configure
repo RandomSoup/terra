@@ -1,3 +1,5 @@
+#!/bin/sh
+
 OPTFLAGS:=-O3 -ffast-math
 ifeq ($(RELEASE),)
 	OPTFLAGS+=-g
@@ -30,7 +32,6 @@ endef
 define exec
 all: ./build/$1/$1
 install-exec: ./build/$1/$1
-uninstall-exec: $$(PREFIX)/bin/$1
 
 ./build/$1/$1: $(OBJ_$1) $2
 	$$(CC) -o $$@ $$^ $$(LDFLAGS) $$(LDFLAGS_$1)
@@ -39,7 +40,6 @@ endef
 define lib
 all: ./build/$1/$1.ar ./build/$1/$1.so
 install-lib: ./build/$1/$1.ar ./build/$1/$1.so
-uninstall-lib: $$(PREFIX)/lib/$1.ar $$(PREFIX)/lib/$1.so
 
 ./build/$1/$1.ar: $(OBJ_$1) $2
 	$(AR) rcs $$@ $$^ $$(LDFLAGS_$1)
@@ -65,14 +65,23 @@ install-dev:
 	$(INSTALL) $(IFLAGS) $^ -t $(PREFIX)/include/$(PROJECT)
 
 install: install-exec install-lib install-dev
+PROJECT:=terra
 
-uninstall-exec:
-	rm -rf $^
+include common.mk
 
-uninstall-lib:
-	rm -rf $^
+CFLAGS+=-I./ -I./include
 
-uninstall-dev:
-	rm -rf $(PREFIX)/include/$(PROJECT)
+$(eval $(call decl,libterra,util loop dynstr dynarr piper path gem pget))
+$(eval $(call decl,libpcgi,pcgi))
 
-uninstall: uninstall-exec uninstall-lib uninstall-dev
+$(eval $(call decl,rover,main gui draw line rover))
+$(eval $(call decl,ares,main client cfg mod))
+
+$(eval $(call exec,rover,$(OBJ_libterra)))
+$(eval $(call exec,ares,$(patsubst %,./build/libterra/%.o,util loop dynarr)))
+$(eval $(call lib,libpcgi,$(patsubst %,./build/libterra/%.o,util)))
+$(eval $(call lib,libterra))
+$(eval $(call dev,terra pcgi))
+
+LDFLAGS_rover:=$(shell pkg-config --libs x11) -lutil
+LDFLAGS_ares:=-lrt
